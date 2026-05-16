@@ -1,7 +1,9 @@
 'use client'
 
 import { ConnectButton } from '@rainbow-me/rainbowkit'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useAccount, useChainId } from 'wagmi'
+import useSwap, { encodeUsdcAmount, computeReceiveAmount } from '@/app/hooks/useSwap'
 
 // ─── Token metadata ────────────────────────────────────────────────────────────
 
@@ -45,7 +47,6 @@ function Navbar() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-white/[0.06] bg-[#0a0b0f]/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-        {/* Logo */}
         <div className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/25">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -62,18 +63,12 @@ function Navbar() {
             Aren<span className="text-blue-400">swap</span>
           </span>
         </div>
-
-        {/* Network badge + Connect button */}
         <div className="flex items-center gap-3">
           <div className="hidden items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 sm:flex">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
             <span className="text-xs font-medium text-emerald-400">Arc Testnet</span>
           </div>
-          <ConnectButton
-            chainStatus="icon"
-            showBalance={false}
-            accountStatus="avatar"
-          />
+          <ConnectButton chainStatus="icon" showBalance={false} accountStatus="avatar" />
         </div>
       </div>
     </header>
@@ -103,7 +98,6 @@ function TokenInput({ label, symbol, value, onChange, readOnly = false, balance 
           : 'border-white/[0.08] hover:border-white/[0.14] focus-within:border-blue-500/50 focus-within:bg-white/[0.05]'
       }`}
     >
-      {/* Label row */}
       <div className="mb-3 flex items-center justify-between">
         <span className="text-xs font-medium uppercase tracking-wider text-white/40">{label}</span>
         {balance !== undefined && (
@@ -112,8 +106,6 @@ function TokenInput({ label, symbol, value, onChange, readOnly = false, balance 
           </span>
         )}
       </div>
-
-      {/* Input + token badge */}
       <div className="flex items-center gap-3">
         <input
           type="number"
@@ -129,8 +121,6 @@ function TokenInput({ label, symbol, value, onChange, readOnly = false, balance 
             readOnly ? 'cursor-default' : ''
           }`}
         />
-
-        {/* Token badge */}
         <div className="flex shrink-0 items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.06] px-3 py-2">
           <Icon size={20} />
           <span className={`text-sm font-semibold ${color}`}>{symbol}</span>
@@ -182,25 +172,121 @@ function RateDisplay({ rate }: { rate: string }) {
   )
 }
 
+// ─── Spinner ───────────────────────────────────────────────────────────────────
+
+function Spinner() {
+  return (
+    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+    </svg>
+  )
+}
+
 // ─── Swap card ─────────────────────────────────────────────────────────────────
 
 function SwapCard() {
+  const {
+    swapRate,
+    isRateLoading,
+    isRateError,
+    status,
+    error,
+    successTxHash,
+    executeSwap,
+    resetError,
+  } = useSwap()
+
+  const { isConnected } = useAccount()
+  const chainId = useChainId()
   const [payAmount, setPayAmount] = useState('')
 
-  // Placeholder rate: 1 USDC ≈ 0.9215 EURC (will be replaced with live rate)
-  const PLACEHOLDER_RATE = 0.9215
+  // Auto-dismiss success toast after 10 seconds
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (status === 'success') {
+      toastTimerRef.current = setTimeout(() => resetError(), 10_000)
+    }
+    return () => {
+      if (toastTimerRef.current !== null) {
+        clearTimeout(toastTimerRef.current)
+        toastTimerRef.current = null
+      }
+    }
+  }, [status]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Derived values
+  const isPending = status === 'approving' || status === 'swapping'
+
   const receiveAmount =
-    payAmount && !isNaN(Number(payAmount))
-      ? (Number(payAmount) * PLACEHOLDER_RATE).toFixed(4)
+    swapRate !== undefined &&
+    swapRate > BigInt(0) &&
+    payAmount !== '' &&
+    Number(payAmount) > 0
+      ? computeReceiveAmount(payAmount, swapRate).toFixed(4)
       : ''
+
+  const rateDisplay = isRateLoading
+    ? '—'
+    : isRateError || !swapRate || swapRate === BigInt(0)
+      ? 'Rate unavailable'
+      : `1 USDC ≈ ${(Number(swapRate) / 1e6).toFixed(4)} EURC`
 
   const hasAmount = payAmount !== '' && Number(payAmount) > 0
 
+  // ─── Button state machine ───────────────────────────────────────────────────
+  let buttonLabel: React.ReactNode = 'Swap'
+  let buttonDisabled = false
+  let buttonOnClick: (() => void) | undefined = () => executeSwap(payAmount)
+
+  if (!isConnected) {
+    buttonLabel = 'Connect Wallet'
+    buttonDisabled = true
+    buttonOnClick = undefined
+  } else if (chainId !== 5042002) {
+    buttonLabel = 'Switch to Arc Testnet'
+    buttonDisabled = true
+    buttonOnClick = undefined
+  } else if (status === 'approving') {
+    buttonLabel = (
+      <span className="flex items-center justify-center gap-2">
+        <Spinner />Approving USDC…
+      </span>
+    )
+    buttonDisabled = true
+    buttonOnClick = undefined
+  } else if (status === 'swapping') {
+    buttonLabel = (
+      <span className="flex items-center justify-center gap-2">
+        <Spinner />Swapping…
+      </span>
+    )
+    buttonDisabled = true
+    buttonOnClick = undefined
+  } else {
+    let encodedAmount: bigint
+    let amountTooLarge = false
+    try {
+      encodedAmount = encodeUsdcAmount(payAmount)
+    } catch {
+      encodedAmount = BigInt(0)
+      amountTooLarge = true
+    }
+    if (amountTooLarge) {
+      buttonLabel = 'Amount too large'
+      buttonDisabled = true
+      buttonOnClick = undefined
+    } else if (encodedAmount === BigInt(0)) {
+      buttonLabel = 'Enter an amount'
+      buttonDisabled = true
+      buttonOnClick = undefined
+    }
+  }
+
   return (
     <div className="w-full max-w-md">
-      {/* Card */}
       <div className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-[#111318] shadow-2xl shadow-black/60">
-        {/* Subtle gradient top accent */}
+        {/* Top gradient accent */}
         <div
           className="pointer-events-none absolute inset-x-0 top-0 h-px"
           style={{
@@ -236,7 +322,11 @@ function SwapCard() {
               label="Pay"
               symbol="USDC"
               value={payAmount}
-              onChange={setPayAmount}
+              onChange={(v) => {
+                setPayAmount(v)
+                resetError()
+              }}
+              readOnly={isPending}
               balance="—"
             />
             <SwapArrow />
@@ -248,31 +338,55 @@ function SwapCard() {
             />
           </div>
 
-          {/* Rate */}
+          {/* Rate display */}
           {hasAmount && (
             <div className="mt-3">
-              <RateDisplay rate={`1 USDC ≈ ${PLACEHOLDER_RATE} EURC`} />
+              <RateDisplay rate={rateDisplay} />
             </div>
           )}
 
           {/* Swap button */}
           <button
-            disabled={!hasAmount}
+            disabled={buttonDisabled}
+            onClick={buttonOnClick}
             aria-label="Swap USDC for EURC"
             className={`mt-4 w-full rounded-2xl py-4 text-base font-semibold tracking-wide transition-all duration-200 ${
-              hasAmount
+              !buttonDisabled
                 ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25 hover:from-blue-400 hover:to-indigo-500 hover:shadow-blue-500/40 active:scale-[0.98]'
                 : 'cursor-not-allowed bg-white/[0.06] text-white/25'
             }`}
           >
-            {hasAmount ? 'Swap' : 'Enter an amount'}
+            {buttonLabel}
           </button>
+
+          {/* Success toast */}
+          {status === 'success' && successTxHash && (
+            <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
+              <p className="text-xs font-medium text-emerald-400">
+                Swap successful!{' '}
+                <a
+                  href={`https://testnet.arcscan.app/tx/${successTxHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-emerald-300"
+                >
+                  View on ArcScan
+                </a>
+              </p>
+            </div>
+          )}
+
+          {/* Inline error */}
+          {error && status === 'error' && (
+            <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
+              <p className="text-xs text-red-400">{error}</p>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Disclaimer */}
       <p className="mt-4 text-center text-xs text-white/20">
-        Rates are indicative. Connect wallet to execute swaps on Arc Testnet.
+        Connect wallet to execute swaps on Arc Testnet.
       </p>
     </div>
   )
@@ -283,7 +397,6 @@ function SwapCard() {
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col bg-[#0a0b0f]">
-      {/* Background radial glow */}
       <div
         className="pointer-events-none fixed inset-0 z-0"
         aria-hidden="true"
@@ -296,7 +409,6 @@ export default function Home() {
       <Navbar />
 
       <main className="relative z-10 flex flex-1 flex-col items-center justify-center px-4 py-16">
-        {/* Hero text */}
         <div className="mb-10 text-center">
           <h1 className="mb-3 text-4xl font-bold tracking-tight text-white sm:text-5xl">
             Swap stablecoins{' '}
@@ -312,7 +424,6 @@ export default function Home() {
         <SwapCard />
       </main>
 
-      {/* Footer */}
       <footer className="relative z-10 border-t border-white/[0.04] py-6">
         <p className="text-center text-xs text-white/20">
           Built on{' '}
