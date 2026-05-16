@@ -7,9 +7,9 @@ export const arcTestnet = defineChain({
   id: 5042002,
   name: 'Arc Testnet',
   nativeCurrency: {
-    name: 'USD Coin',
+    name: 'USDC',
     symbol: 'USDC',
-    decimals: 6,
+    decimals: 18,
   },
   rpcUrls: {
     default: { http: ['https://rpc.testnet.arc.network'] },
@@ -20,6 +20,7 @@ export const arcTestnet = defineChain({
       url: 'https://testnet.arcscan.app',
     },
   },
+  testnet: true,
 })
 
 export const wagmiConfig = createConfig({

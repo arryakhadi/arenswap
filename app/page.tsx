@@ -4,6 +4,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { useState, useEffect, useRef } from 'react'
 import { useAccount, useChainId } from 'wagmi'
 import useSwap, { encodeUsdcAmount, computeReceiveAmount } from '@/app/hooks/useSwap'
+import CircleSwapBox from '@/app/components/CircleSwapBox'
 
 // ─── Token metadata ────────────────────────────────────────────────────────────
 
@@ -429,6 +430,19 @@ export default function Home() {
         </div>
 
         <SwapCard />
+
+        {/* ── Circle Swap Kit integration ── */}
+        <div className="mt-12 w-full max-w-md">
+          <div className="mb-6 text-center">
+            <h2 className="mb-1 text-xl font-semibold text-white">
+              Circle Swap Kit
+            </h2>
+            <p className="text-sm text-white/40">
+              Swap USDC, EURC, and cirBTC via the official Circle Swap Kit
+            </p>
+          </div>
+          <CircleSwapBox />
+        </div>
       </main>
 
       <footer className="relative z-10 border-t border-white/[0.04] py-6">

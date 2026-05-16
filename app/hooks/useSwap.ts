@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, startTransition } from 'react'
 import {
   useAccount,
   useChainId,
@@ -153,10 +153,12 @@ export default function useSwap(usdcAmount: string = ''): UseSwapReturn {
   // Approval receipt → approved or error
   useEffect(() => {
     if (approveReceipt.status === 'success') {
-      setStatus('approved')
+      startTransition(() => setStatus('approved'))
     } else if (approveReceipt.status === 'error') {
-      setStatus('error')
-      setError('Approval transaction was reverted')
+      startTransition(() => {
+        setStatus('error')
+        setError('Approval transaction was reverted')
+      })
     }
   }, [approveReceipt.status])
 
@@ -177,26 +179,32 @@ export default function useSwap(usdcAmount: string = ''): UseSwapReturn {
   // Swap receipt → success or error
   useEffect(() => {
     if (swapReceipt.status === 'success') {
-      setStatus('success')
+      startTransition(() => setStatus('success'))
     } else if (swapReceipt.status === 'error') {
-      setStatus('error')
-      setError('Swap transaction was reverted')
+      startTransition(() => {
+        setStatus('error')
+        setError('Swap transaction was reverted')
+      })
     }
   }, [swapReceipt.status])
 
   // Approve write error
   useEffect(() => {
     if (approveWrite.error) {
-      setStatus('error')
-      setError(approveWrite.error.message ?? 'Approval failed')
+      startTransition(() => {
+        setStatus('error')
+        setError(approveWrite.error!.message ?? 'Approval failed')
+      })
     }
   }, [approveWrite.error])
 
   // Swap write error
   useEffect(() => {
     if (swapWrite.error) {
-      setStatus('error')
-      setError(swapWrite.error.message ?? 'Swap failed')
+      startTransition(() => {
+        setStatus('error')
+        setError(swapWrite.error!.message ?? 'Swap failed')
+      })
     }
   }, [swapWrite.error])
 
