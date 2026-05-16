@@ -1,9 +1,7 @@
 'use client'
 
 import { ConnectButton } from '@rainbow-me/rainbowkit'
-import { useState, useEffect, useRef } from 'react'
-import { useAccount, useChainId } from 'wagmi'
-import useSwap, { encodeUsdcAmount, computeReceiveAmount } from '@/app/hooks/useSwap'
+import { useState } from 'react'
 
 // ─── Token metadata ────────────────────────────────────────────────────────────
 
@@ -184,100 +182,17 @@ function RateDisplay({ rate }: { rate: string }) {
   )
 }
 
-// ─── Spinner ───────────────────────────────────────────────────────────────────
-
-function Spinner() {
-  return (
-    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-    </svg>
-  )
-}
-
 // ─── Swap card ─────────────────────────────────────────────────────────────────
 
 function SwapCard() {
-  const { swapRate, isRateLoading, isRateError, status, error, successTxHash, executeSwap, resetError } = useSwap()
-  const { isConnected } = useAccount()
-  const chainId = useChainId()
-
   const [payAmount, setPayAmount] = useState('')
 
-  // Auto-dismiss success toast after 10 seconds
-  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => {
-    if (status === 'success') {
-      toastTimerRef.current = setTimeout(() => {
-        resetError()
-      }, 10_000)
-    }
-    return () => {
-      if (toastTimerRef.current !== null) {
-        clearTimeout(toastTimerRef.current)
-        toastTimerRef.current = null
-      }
-    }
-  }, [status]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Compute receive amount
+  // Placeholder rate: 1 USDC ≈ 0.9215 EURC (will be replaced with live rate)
+  const PLACEHOLDER_RATE = 0.9215
   const receiveAmount =
-    swapRate !== undefined && swapRate > BigInt(0) && payAmount !== '' && Number(payAmount) > 0
-      ? computeReceiveAmount(payAmount, swapRate).toFixed(4)
+    payAmount && !isNaN(Number(payAmount))
+      ? (Number(payAmount) * PLACEHOLDER_RATE).toFixed(4)
       : ''
-
-  // Compute rate display string
-  const rateDisplay = isRateLoading
-    ? '—'
-    : isRateError || !swapRate || swapRate === BigInt(0)
-      ? 'Rate unavailable'
-      : `1 USDC ≈ ${(Number(swapRate) / 1e6).toFixed(4)} EURC`
-
-  // Pending state
-  const isPending = status === 'approving' || status === 'swapping'
-
-  // Determine button label, disabled state, and onClick
-  let buttonLabel: React.ReactNode = 'Swap'
-  let buttonDisabled = false
-  let buttonOnClick: (() => void) | undefined = () => executeSwap(payAmount)
-
-  if (!isConnected) {
-    buttonLabel = 'Connect Wallet'
-    buttonDisabled = true
-    buttonOnClick = undefined
-  } else if (chainId !== 5042002) {
-    buttonLabel = 'Switch to Arc Testnet'
-    buttonDisabled = true
-    buttonOnClick = undefined
-  } else if (status === 'approving') {
-    buttonLabel = <span className="flex items-center justify-center gap-2"><Spinner />Approving USDC…</span>
-    buttonDisabled = true
-    buttonOnClick = undefined
-  } else if (status === 'swapping') {
-    buttonLabel = <span className="flex items-center justify-center gap-2"><Spinner />Swapping…</span>
-    buttonDisabled = true
-    buttonOnClick = undefined
-  } else {
-    // Check amount validity
-    let encodedAmount: bigint
-    let amountTooLarge = false
-    try {
-      encodedAmount = encodeUsdcAmount(payAmount)
-    } catch {
-      encodedAmount = BigInt(0)
-      amountTooLarge = true
-    }
-    if (amountTooLarge) {
-      buttonLabel = 'Amount too large'
-      buttonDisabled = true
-      buttonOnClick = undefined
-    } else if (encodedAmount === BigInt(0)) {
-      buttonLabel = 'Enter an amount'
-      buttonDisabled = true
-      buttonOnClick = undefined
-    }
-  }
 
   const hasAmount = payAmount !== '' && Number(payAmount) > 0
 
@@ -321,11 +236,7 @@ function SwapCard() {
               label="Pay"
               symbol="USDC"
               value={payAmount}
-              onChange={(v) => {
-                setPayAmount(v)
-                resetError()
-              }}
-              readOnly={isPending}
+              onChange={setPayAmount}
               balance="—"
             />
             <SwapArrow />
@@ -340,47 +251,22 @@ function SwapCard() {
           {/* Rate */}
           {hasAmount && (
             <div className="mt-3">
-              <RateDisplay rate={rateDisplay} />
+              <RateDisplay rate={`1 USDC ≈ ${PLACEHOLDER_RATE} EURC`} />
             </div>
           )}
 
           {/* Swap button */}
           <button
-            disabled={buttonDisabled}
-            onClick={buttonOnClick}
+            disabled={!hasAmount}
             aria-label="Swap USDC for EURC"
             className={`mt-4 w-full rounded-2xl py-4 text-base font-semibold tracking-wide transition-all duration-200 ${
-              !buttonDisabled
+              hasAmount
                 ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25 hover:from-blue-400 hover:to-indigo-500 hover:shadow-blue-500/40 active:scale-[0.98]'
                 : 'cursor-not-allowed bg-white/[0.06] text-white/25'
             }`}
           >
-            {buttonLabel}
+            {hasAmount ? 'Swap' : 'Enter an amount'}
           </button>
-
-          {/* Success toast */}
-          {status === 'success' && successTxHash && (
-            <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
-              <p className="text-xs font-medium text-emerald-400">
-                Swap successful!{' '}
-                <a
-                  href={`https://testnet.arcscan.app/tx/${successTxHash}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:text-emerald-300"
-                >
-                  View on ArcScan
-                </a>
-              </p>
-            </div>
-          )}
-
-          {/* Inline error */}
-          {error && status === 'error' && (
-            <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
-              <p className="text-xs text-red-400">{error}</p>
-            </div>
-          )}
         </div>
       </div>
 
