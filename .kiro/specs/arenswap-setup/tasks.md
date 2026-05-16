@@ -12,7 +12,7 @@ Set up the ArenSwap project baseline across two sibling directories: install and
   - Confirm the install exits with code 0 and produces no peer dependency conflict output
   - _Requirements: 1.1, 1.2, 1.3_
 
-- [ ] 2. Create Wagmi configuration module
+- [x] 2. Create Wagmi configuration module
   - Create `app/lib/wagmi.ts` in `arenswap-frontend/`
   - Add `'use client'` as the first line of the file
   - Define the `arcTestnet` custom chain using `defineChain` from `viem` with: id `5042002`, name `"Arc Testnet"`, native currency `{ name: "USD Coin", symbol: "USDC", decimals: 6 }`, RPC URL `https://rpc.testnet.arcscan.app`, block explorer URL `https://testnet.arcscan.app`
@@ -20,7 +20,7 @@ Set up the ArenSwap project baseline across two sibling directories: install and
   - No `window`, `document`, or `localStorage` calls at module evaluation time
   - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
-- [ ] 3. Create Web3Provider component
+- [x] 3. Create Web3Provider component
   - Create `app/providers/Web3Provider.tsx` in `arenswap-frontend/`
   - Add `'use client'` as the first line of the file
   - Import `QueryClient` and `QueryClientProvider` from `@tanstack/react-query`
@@ -33,25 +33,25 @@ Set up the ArenSwap project baseline across two sibling directories: install and
   - Nest providers in order: `QueryClientProvider` (outermost, `client={queryClient}`) → `WagmiProvider` (`config={wagmiConfig}`) → `RainbowKitProvider` (`theme={coolTheme()}`) → `{children}` (innermost)
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
 
-- [ ] 4. Integrate Web3Provider into root layout
+- [x] 4. Integrate Web3Provider into root layout
   - Modify `app/layout.tsx` in `arenswap-frontend/`
   - Add `import Web3Provider from './providers/Web3Provider'` (do NOT add `'use client'` to this file)
   - Wrap `{children}` inside `<body>` with `<Web3Provider>{children}</Web3Provider>`
   - Preserve the `metadata` named export, `geistSans` with `--font-geist-sans`, and `geistMono` with `--font-geist-mono` unchanged
   - _Requirements: 4.1, 4.2, 4.3_
 
-- [ ] 5. Checkpoint — verify frontend builds
+- [x] 5. Checkpoint — verify frontend builds
   - Run `npm run build` inside `arenswap-frontend/` and confirm it exits with code 0 and no TypeScript or compiler errors
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 6. Initialize Foundry contracts project
+- [x] 6. Initialize Foundry contracts project
   - Run `forge init arenswap-contracts` from the parent directory `d:\` (so the new project lands at `d:\arenswap-contracts\`, a sibling of `arenswap-frontend\`)
   - Confirm the following directories exist and are non-empty after init: `src/`, `test/`, `script/`, `lib/`, `lib/forge-std/`
   - Confirm `foundry.toml` exists at the project root
   - Run `forge build` inside `arenswap-contracts/` and confirm it exits with code 0
   - _Requirements: 5.1, 5.2, 5.3, 5.4_
 
-- [ ] 7. Scaffold ArenSwap contract
+- [x] 7. Scaffold ArenSwap contract
   - Create `arenswap-contracts/src/ArenSwap.sol` (replacing the default `Counter.sol` if present)
   - File must begin with `// SPDX-License-Identifier: MIT` and `pragma solidity ^0.8.20;`
   - Define an inline `IERC20` interface with `transfer`, `transferFrom`, `approve`, and `balanceOf` signatures
@@ -63,7 +63,7 @@ Set up the ArenSwap project baseline across two sibling directories: install and
   - Implement `swap(uint256 usdcAmount) external` that reverts with `"ArenSwap: amount must be greater than zero"` when `usdcAmount == 0`, and contains a `// TODO:` comment describing the expected computation shape `eurcAmount = usdcAmount * swapRate`
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9_
 
-- [ ] 8. Scaffold ArenSwap test file
+- [x] 8. Scaffold ArenSwap test file
   - Create `arenswap-contracts/test/ArenSwap.t.sol` (replacing the default `Counter.t.sol` if present)
   - File must begin with `// SPDX-License-Identifier: MIT` and `pragma solidity ^0.8.20;`
   - Import `"forge-std/Test.sol"` and `"../src/ArenSwap.sol"`
@@ -78,7 +78,7 @@ Set up the ArenSwap project baseline across two sibling directories: install and
     - **Validates: Requirements 6.7, 6.8**
   - _Requirements: 7.1, 7.2, 7.3, 7.4_
 
-- [ ] 9. Scaffold ArenSwap deployment script
+- [x] 9. Scaffold ArenSwap deployment script
   - Create `arenswap-contracts/script/ArenSwap.s.sol` (replacing the default `Counter.s.sol` if present)
   - File must begin with `// SPDX-License-Identifier: MIT` and `pragma solidity ^0.8.20;`
   - Import `"forge-std/Script.sol"` and `"../src/ArenSwap.sol"`
@@ -87,7 +87,7 @@ Set up the ArenSwap project baseline across two sibling directories: install and
   - Call `vm.startBroadcast()`, then `new ArenSwap(usdcAddress, eurcAddress)`, then `vm.stopBroadcast()`
   - _Requirements: 8.1, 8.2, 8.3_
 
-- [ ] 10. Checkpoint — verify contracts project builds and tests pass
+- [x] 10. Checkpoint — verify contracts project builds and tests pass
   - Run `forge build` inside `arenswap-contracts/` and confirm it exits with code 0 with no compiler errors
   - Run `forge test` inside `arenswap-contracts/` and confirm it exits with code 0
   - Ensure all tests pass, ask the user if questions arise.
