@@ -575,6 +575,7 @@ export default function CircleSwapBox() {
   const [showModal, setShowModal] = useState(false)
   const [verification, setVerification] = useState<VerificationResult | null>(null)
   const [verifying, setVerifying] = useState(false)
+  const [ignoredTransferReasons, setIgnoredTransferReasons] = useState<string[]>([])
 
   const [balanceIn, setBalanceIn] = useState<string | null>(null)
   const [balanceOut, setBalanceOut] = useState<string | null>(null)
@@ -657,9 +658,24 @@ export default function CircleSwapBox() {
     walletAddr: string,
     inToken: SupportedToken,
     outToken: SupportedToken,
-  ): { transferInAmount: string | null; transferOutAmount: string | null; transfersDetected: boolean } {
-    let transferInAmount: string | null = null
-    let transferOutAmount: string | null = null
+    amountInBaseUnits: bigint,
+  ): {
+    transferInAmount: string | null
+    transferOutAmount: string | null
+    transfersDetected: boolean
+    transferInRaw: bigint
+    transferOutRaw: bigint
+    ignoredReasons: string[]
+  } {
+    // A Transfer only counts as the swap transfer if its amount is >= 10% of
+    // amountIn. Protocol/service fees are typically < 1%, so this threshold
+    // cleanly separates real swap transfers from fee transfers.
+    const MIN_FRACTION = BigInt(10) // 10%
+    const minSwapAmount = (amountInBaseUnits * MIN_FRACTION) / BigInt(100)
+
+    let bestTransferIn = BigInt(0)
+    let bestTransferOut = BigInt(0)
+    const ignoredReasons: string[] = []
     const wallet = walletAddr.toLowerCase()
 
     for (const log of logs) {
@@ -681,21 +697,40 @@ export default function CircleSwapBox() {
 
         // tokenIn leaving wallet
         if (logAddr === inAddr && from === wallet) {
-          transferInAmount = formatDelta(value, TOKEN_DECIMALS[inToken])
+          if (value >= minSwapAmount) {
+            if (value > bestTransferIn) bestTransferIn = value
+          } else {
+            // Too small — this is a fee transfer, not the swap transfer
+            ignoredReasons.push(
+              `Ignored tokenIn transfer of ${formatDelta(value, TOKEN_DECIMALS[inToken])} ${inToken} ` +
+              `(below 10% threshold of ${formatDelta(minSwapAmount, TOKEN_DECIMALS[inToken])} ${inToken})`
+            )
+          }
         }
-        // tokenOut entering wallet
-        if (logAddr === outAddr && to === wallet) {
-          transferOutAmount = formatDelta(value, TOKEN_DECIMALS[outToken])
+
+        // tokenOut entering wallet — any positive amount counts
+        if (logAddr === outAddr && to === wallet && value > BigInt(0)) {
+          if (value > bestTransferOut) bestTransferOut = value
         }
       } catch {
-        // log not decodable as Transfer  skip
+        // log not decodable as Transfer — skip
       }
     }
 
+    // Both tokenIn AND tokenOut must be detected for a real swap
+    const transfersDetected = bestTransferIn > BigInt(0) && bestTransferOut > BigInt(0)
+
     return {
-      transferInAmount,
-      transferOutAmount,
-      transfersDetected: transferInAmount !== null || transferOutAmount !== null,
+      transferInAmount: bestTransferIn > BigInt(0)
+        ? formatDelta(bestTransferIn, TOKEN_DECIMALS[inToken])
+        : null,
+      transferOutAmount: bestTransferOut > BigInt(0)
+        ? formatDelta(bestTransferOut, TOKEN_DECIMALS[outToken])
+        : null,
+      transfersDetected,
+      transferInRaw: bestTransferIn,
+      transferOutRaw: bestTransferOut,
+      ignoredReasons,
     }
   }
 
@@ -706,18 +741,24 @@ export default function CircleSwapBox() {
     snapshot: BalanceSnapshot,
     inToken: SupportedToken,
     outToken: SupportedToken,
-  ): Promise<{ result: VerificationResult; passed: boolean }> {
+    amountInStr: string,
+  ): Promise<{ result: VerificationResult; passed: boolean; ignoredReasons: string[] }> {
     if (!publicClient || !address) throw new Error('No public client')
+
+    // Convert amountIn to base units for threshold calculations
+    const decimals = TOKEN_DECIMALS[inToken]
+    const amountInBaseUnits = BigInt(Math.round(parseFloat(amountInStr) * Math.pow(10, decimals)))
 
     // Re-read receipt for log decoding
     const receipt = await publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` })
 
-    // Decode Transfer events
+    // Decode Transfer events with strict amount filtering
     const transfers = decodeTransfers(
       receipt.logs as { address: string; topics: readonly string[]; data: string }[],
       address,
       inToken,
       outToken,
+      amountInBaseUnits,
     )
 
     // Read post-swap balances
@@ -728,6 +769,17 @@ export default function CircleSwapBox() {
 
     const deltaIn = snapshot.rawIn - rawInAfter    // positive = spent
     const deltaOut = rawOutAfter - snapshot.rawOut  // positive = received
+
+    // Strict balance-delta check:
+    // deltaIn must be >= 10% of amountIn to exclude gas-only USDC loss.
+    // Arc uses USDC as native gas — gas fees alone can cause small deltaIn.
+    // deltaOut must be > 0.
+    const minDeltaIn = (amountInBaseUnits * BigInt(10)) / BigInt(100)
+    const balanceDeltaPassed = deltaIn >= minDeltaIn && deltaOut > BigInt(0)
+
+    // Transfer-log check: both tokenIn outgoing AND tokenOut incoming must be
+    // detected at meaningful amounts (already filtered in decodeTransfers).
+    const transfersPassed = transfers.transfersDetected
 
     const result: VerificationResult = {
       deltaIn,
@@ -743,10 +795,11 @@ export default function CircleSwapBox() {
       transferOutAmount: transfers.transferOutAmount,
     }
 
-    // Pass if balance deltas show expected direction, OR if Transfer events detected
-    const passed = (deltaIn > BigInt(0) && deltaOut > BigInt(0)) || transfers.transfersDetected
+    // Pass only if BOTH tokenIn was spent AND tokenOut was received at meaningful amounts.
+    // A fee-only transaction has no tokenOut transfer and tiny tokenIn movement — both fail.
+    const passed = balanceDeltaPassed || transfersPassed
 
-    return { result, passed }
+    return { result, passed, ignoredReasons: transfers.ignoredReasons }
   }
 
   //  Manual verify button 
@@ -757,8 +810,9 @@ export default function CircleSwapBox() {
     if (!txHash || !snapshot || verifying) return
     setVerifying(true)
     try {
-      const { result, passed } = await verifySwap(txHash, snapshot, tokenIn, tokenOut)
+      const { result, passed, ignoredReasons } = await verifySwap(txHash, snapshot, tokenIn, tokenOut, amountIn)
       setVerification(result)
+      setIgnoredTransferReasons(ignoredReasons)
       // Update displayed balances
       startTransition(() => {
         setBalanceIn(result.balanceInFormatted)
@@ -811,6 +865,7 @@ export default function CircleSwapBox() {
     setSwapTxHash(null)
     setEstimatedOut(null)
     setVerification(null)
+    setIgnoredTransferReasons([])
     setBalanceStale(false)
     setPhaseSync('idle')
   }
@@ -926,8 +981,9 @@ export default function CircleSwapBox() {
       setPhaseSync('verifying')
       await new Promise((resolve) => setTimeout(resolve, 1500))
 
-      const { result, passed } = await verifySwap(finalTxHash, snapshot, tokenIn, tokenOut)
+      const { result, passed, ignoredReasons } = await verifySwap(finalTxHash, snapshot, tokenIn, tokenOut, amountIn)
       setVerification(result)
+      setIgnoredTransferReasons(ignoredReasons)
 
       // Update displayed balances from verification
       startTransition(() => {
@@ -1084,7 +1140,36 @@ export default function CircleSwapBox() {
               <details className="mt-4">
                 <summary className="cursor-pointer text-xs text-white/20 hover:text-white/40">Debug (dev only)</summary>
                 <pre className="mt-2 rounded-lg bg-white/[0.03] p-3 text-[10px] text-white/40 overflow-auto max-h-48">
-                  {JSON.stringify({ address, chainId, tokenIn, tokenOut, amountIn, phase, balanceIn, balanceOut, approveTxHash, swapTxHash, error, verification: verification ? { deltaIn: verification.deltaIn.toString(), deltaOut: verification.deltaOut.toString(), transfersDetected: verification.transfersDetected } : null }, null, 2)}
+                  {JSON.stringify({
+                    address,
+                    chainId,
+                    tokenIn,
+                    tokenOut,
+                    tokenInAddress: TOKEN_ADDRESSES[tokenIn],
+                    tokenOutAddress: TOKEN_ADDRESSES[tokenOut],
+                    tokenInDecimals: TOKEN_DECIMALS[tokenIn],
+                    tokenOutDecimals: TOKEN_DECIMALS[tokenOut],
+                    amountIn,
+                    estimatedOut,
+                    phase,
+                    balanceIn,
+                    balanceOut,
+                    approveTxHash,
+                    swapTxHash,
+                    error,
+                    verification: verification ? {
+                      deltaIn: verification.deltaIn.toString(),
+                      deltaOut: verification.deltaOut.toString(),
+                      deltaInFormatted: verification.deltaInFormatted,
+                      deltaOutFormatted: verification.deltaOutFormatted,
+                      balanceInFormatted: verification.balanceInFormatted,
+                      balanceOutFormatted: verification.balanceOutFormatted,
+                      transfersDetected: verification.transfersDetected,
+                      transferInAmount: verification.transferInAmount,
+                      transferOutAmount: verification.transferOutAmount,
+                    } : null,
+                    ignoredTransferReasons,
+                  }, null, 2)}
                 </pre>
               </details>
             )}
