@@ -266,13 +266,34 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // We never return the kit key or any server secret.
   const d = circleData as Record<string, unknown>
 
+  // Format estimatedAmount from base units to a human-readable decimal string.
+  // Circle returns estimatedAmount as a base-unit integer string (e.g. "1082974"
+  // for 1.082974 USDC). We format it here so the browser never has to guess decimals.
+  const tokenOutDecimals = TOKEN_DECIMALS[tokenOut as string] ?? 6
+  let estimatedAmountFormatted: string | null = null
+  if (d.estimatedAmount && typeof d.estimatedAmount === 'string') {
+    try {
+      const raw = BigInt(d.estimatedAmount)
+      const divisor = Math.pow(10, tokenOutDecimals)
+      const human = Number(raw) / divisor
+      estimatedAmountFormatted = human.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: tokenOutDecimals,
+      })
+    } catch {
+      estimatedAmountFormatted = null
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     tokenIn,
     tokenOut,
+    tokenOutDecimals,
     amountIn: amountIn as string,
     amountBaseUnits,
-    estimatedAmount: d.estimatedAmount ?? null,
+    estimatedAmount: d.estimatedAmount ?? null,          // raw base units (kept for reference)
+    estimatedAmountFormatted,                             // human-readable decimal string
     stopLimit:       d.stopLimit ?? null,
     fromAddress:     d.fromAddress ?? fromAddress,
     toAddress:       d.toAddress ?? toAddress,

@@ -138,9 +138,11 @@ interface ProxyResponse {
   ok: boolean
   tokenIn: string
   tokenOut: string
+  tokenOutDecimals: number
   amountIn: string
   amountBaseUnits: string
-  estimatedAmount: string
+  estimatedAmount: string | null          // raw base units from Circle
+  estimatedAmountFormatted: string | null // human-readable decimal, formatted server-side
   stopLimit: string
   fromAddress: string
   toAddress: string
@@ -357,9 +359,14 @@ interface SuccessCardProps {
   estimatedOut: string | null
   approveTxHash: string | null
   swapTxHash: string
+  balanceIn: string | null
+  balanceOut: string | null
 }
 
-function SuccessCard({ tokenIn, tokenOut, amountIn, estimatedOut, approveTxHash, swapTxHash }: SuccessCardProps) {
+function SuccessCard({
+  tokenIn, tokenOut, amountIn, estimatedOut,
+  approveTxHash, swapTxHash, balanceIn, balanceOut,
+}: SuccessCardProps) {
   const [copied, setCopied] = useState(false)
 
   function copyHash() {
@@ -386,6 +393,28 @@ function SuccessCard({ tokenIn, tokenOut, amountIn, estimatedOut, approveTxHash,
           <div className="flex items-center justify-between">
             <span className="text-white/40">Est. received</span>
             <span className="text-white/70 font-medium">{estimatedOut} {tokenOut}</span>
+          </div>
+        )}
+        {!estimatedOut && (
+          <div className="flex items-center justify-between">
+            <span className="text-white/40">Output</span>
+            <span className="text-white/40 italic">Available on explorer</span>
+          </div>
+        )}
+        {(balanceIn !== null || balanceOut !== null) && (
+          <div className="border-t border-white/[0.06] pt-2 space-y-1.5">
+            {balanceIn !== null && (
+              <div className="flex items-center justify-between">
+                <span className="text-white/30">New {tokenIn} balance</span>
+                <span className="text-white/50 font-medium">{balanceIn} {tokenIn}</span>
+              </div>
+            )}
+            {balanceOut !== null && (
+              <div className="flex items-center justify-between">
+                <span className="text-white/30">New {tokenOut} balance</span>
+                <span className="text-white/50 font-medium">{balanceOut} {tokenOut}</span>
+              </div>
+            )}
           </div>
         )}
         {approveTxHash && (
@@ -524,8 +553,13 @@ export default function CircleSwapBox() {
   const [estimatedOut, setEstimatedOut] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
 
-  const [balance, setBalance] = useState<string | null>(null)
+  // tokenIn balance (shown in From selector)
+  const [balanceIn, setBalanceIn] = useState<string | null>(null)
+  // tokenOut balance (shown in To selector and success card)
+  const [balanceOut, setBalanceOut] = useState<string | null>(null)
   const [balanceLoading, setBalanceLoading] = useState(false)
+  // Set to true after swap success so UI can show "may take a moment" hint
+  const [balanceStale, setBalanceStale] = useState(false)
 
   // Synchronous duplicate-submit lock
   const isSwappingRef = useRef(false)
@@ -547,40 +581,64 @@ export default function CircleSwapBox() {
     publicKitKey !== '' &&
     !publicKitKey.startsWith('KIT_KEY:')
 
-  // ─── Balance fetch ──────────────────────────────────────────────────────────
+  // ─── Balance fetch — reads both tokenIn and tokenOut ───────────────────────
+  // Uses viem readContract directly (no wagmi query cache) so we always get
+  // fresh on-chain data when called explicitly after a swap.
 
-  const fetchBalance = useCallback(async () => {
+  const fetchBalances = useCallback(async (inToken: SupportedToken, outToken: SupportedToken) => {
     if (!address || !publicClient || chainId !== ARC_TESTNET_CHAIN_ID) {
-      startTransition(() => setBalance(null))
+      startTransition(() => { setBalanceIn(null); setBalanceOut(null) })
       return
     }
     startTransition(() => setBalanceLoading(true))
     try {
-      const raw = await publicClient.readContract({
-        address: TOKEN_ADDRESSES[tokenIn],
-        abi: ERC20_ABI,
-        functionName: 'balanceOf',
-        args: [address],
+      const [rawIn, rawOut] = await Promise.allSettled([
+        publicClient.readContract({
+          address: TOKEN_ADDRESSES[inToken],
+          abi: ERC20_ABI,
+          functionName: 'balanceOf',
+          args: [address],
+        }),
+        publicClient.readContract({
+          address: TOKEN_ADDRESSES[outToken],
+          abi: ERC20_ABI,
+          functionName: 'balanceOf',
+          args: [address],
+        }),
+      ])
+      startTransition(() => {
+        setBalanceIn(
+          rawIn.status === 'fulfilled'
+            ? formatBalance(rawIn.value as bigint, TOKEN_DECIMALS[inToken])
+            : null
+        )
+        setBalanceOut(
+          rawOut.status === 'fulfilled'
+            ? formatBalance(rawOut.value as bigint, TOKEN_DECIMALS[outToken])
+            : null
+        )
       })
-      startTransition(() => setBalance(formatBalance(raw as bigint, TOKEN_DECIMALS[tokenIn])))
     } catch {
-      startTransition(() => setBalance(null))
+      startTransition(() => { setBalanceIn(null); setBalanceOut(null) })
     } finally {
       startTransition(() => setBalanceLoading(false))
     }
-  }, [address, publicClient, chainId, tokenIn])
+  }, [address, publicClient, chainId])
 
+  // Refetch whenever wallet, chain, or selected tokens change
   useEffect(() => {
     let cancelled = false
-    fetchBalance().then(() => { if (cancelled) return }).catch(() => {})
+    fetchBalances(tokenIn, tokenOut)
+      .then(() => { if (cancelled) return })
+      .catch(() => {})
     return () => { cancelled = true }
-  }, [fetchBalance])
+  }, [fetchBalances, tokenIn, tokenOut])
 
   // ─── Max button ─────────────────────────────────────────────────────────────
 
   function handleMax() {
-    if (!balance) return
-    const n = parseFloat(balance.replace(/,/g, ''))
+    if (!balanceIn) return
+    const n = parseFloat(balanceIn.replace(/,/g, ''))
     if (!isFinite(n) || n <= 0) return
     const safe = tokenIn === 'USDC' ? Math.max(0, n - GAS_BUFFER_USDC) : n
     if (safe <= 0) return
@@ -614,6 +672,7 @@ export default function CircleSwapBox() {
     setApproveTxHash(null)
     setSwapTxHash(null)
     setEstimatedOut(null)
+    setBalanceStale(false)
     setPhaseSync('idle')
   }
 
@@ -662,7 +721,7 @@ export default function CircleSwapBox() {
         )
       }
 
-      setEstimatedOut(data.estimatedAmount)
+      setEstimatedOut(data.estimatedAmountFormatted ?? null)
 
       const tx = data.transaction as SwapTransaction
       if (!tx?.executionParams?.instructions?.length) {
@@ -733,17 +792,24 @@ export default function CircleSwapBox() {
       await publicClient.waitForTransactionReceipt({ hash: finalTxHash })
       setPhaseSync('success')
 
-      // Step 4: Record in history
+      // Step 4: Record in history — store the formatted decimal string, not raw base units
       addEntry({
         timestamp: Date.now(),
         chainId: ARC_TESTNET_CHAIN_ID,
         tokenIn, tokenOut, amountIn,
-        estimatedOut: data.estimatedAmount ?? null,
+        estimatedOut: data.estimatedAmountFormatted ?? null,
         approveTxHash: finalApproveTxHash,
         swapTxHash: finalTxHash,
       })
 
-      fetchBalance()
+      // Step 5: Refresh both balances after a short delay.
+      // The RPC may lag briefly after receipt confirmation, so we wait 1.5 s
+      // before reading. If the read still returns stale data, the stale hint
+      // is shown and the user can click "Refresh balances" manually.
+      setBalanceStale(true)
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      await fetchBalances(tokenIn, tokenOut)
+      setBalanceStale(false)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'An unexpected error occurred.'
       if (isUserRejection(message)) {
@@ -843,7 +909,7 @@ export default function CircleSwapBox() {
                   onChange={(v) => { setTokenIn(v); resetForm() }}
                   exclude={tokenOut}
                   disabled={isActive}
-                  balance={isConnected && chainId === ARC_TESTNET_CHAIN_ID ? balance : undefined}
+                  balance={isConnected && chainId === ARC_TESTNET_CHAIN_ID ? balanceIn : undefined}
                   balanceLoading={balanceLoading}
                   onMax={isConnected && chainId === ARC_TESTNET_CHAIN_ID ? handleMax : undefined}
                 />
@@ -853,6 +919,8 @@ export default function CircleSwapBox() {
                   onChange={(v) => { setTokenOut(v); resetForm() }}
                   exclude={tokenIn}
                   disabled={isActive}
+                  balance={isConnected && chainId === ARC_TESTNET_CHAIN_ID ? balanceOut : undefined}
+                  balanceLoading={balanceLoading}
                 />
               </div>
 
@@ -884,6 +952,29 @@ export default function CircleSwapBox() {
                 <div className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-2.5">
                   <Spinner />
                   <p className="text-xs text-white/50">{PHASE_LABELS[phase]}</p>
+                </div>
+              )}
+
+              {/* Stale balance hint + manual refresh */}
+              {!isActive && isConnected && chainId === ARC_TESTNET_CHAIN_ID && (
+                <div className="flex items-center justify-between">
+                  {balanceStale && (
+                    <p className="text-xs text-white/30">
+                      Swap confirmed. Balance may take a few seconds to update.
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => fetchBalances(tokenIn, tokenOut)}
+                    disabled={balanceLoading}
+                    className="ml-auto flex items-center gap-1.5 text-xs text-white/25 transition-colors hover:text-white/50 disabled:opacity-30"
+                    aria-label="Refresh balances"
+                  >
+                    <svg className={`h-3 w-3 ${balanceLoading ? 'animate-spin' : ''}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                    </svg>
+                    Refresh
+                  </button>
                 </div>
               )}
 
@@ -944,6 +1035,8 @@ export default function CircleSwapBox() {
                 estimatedOut={estimatedOut}
                 approveTxHash={approveTxHash}
                 swapTxHash={swapTxHash}
+                balanceIn={balanceIn}
+                balanceOut={balanceOut}
               />
             )}
 
@@ -954,7 +1047,7 @@ export default function CircleSwapBox() {
                   Debug (dev only)
                 </summary>
                 <pre className="mt-2 rounded-lg bg-white/[0.03] p-3 text-[10px] text-white/40 overflow-auto max-h-48">
-                  {JSON.stringify({ address, chainId, tokenIn, tokenOut, amountIn, phase, approveTxHash, swapTxHash, error }, null, 2)}
+                  {JSON.stringify({ address, chainId, tokenIn, tokenOut, amountIn, phase, balanceIn, balanceOut, approveTxHash, swapTxHash, error }, null, 2)}
                 </pre>
               </details>
             )}

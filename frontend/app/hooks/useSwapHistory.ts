@@ -32,7 +32,27 @@ function loadHistory(): SwapHistoryEntry[] {
     if (!raw) return []
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
-    return parsed as SwapHistoryEntry[]
+    // Sanitize entries: drop any with obviously raw/corrupted estimatedOut values.
+    // A raw base-unit string like "1082974" for a 6-decimal token would be > 1000
+    // when parsed as a float, which is implausible for a formatted decimal output.
+    // We keep the entry but null out the bad estimatedOut rather than dropping it.
+    return (parsed as SwapHistoryEntry[]).map((entry) => {
+      if (!entry || typeof entry !== 'object') return null
+      const sanitized = { ...entry }
+      if (sanitized.estimatedOut !== null && sanitized.estimatedOut !== undefined) {
+        const n = parseFloat(String(sanitized.estimatedOut))
+        // If the value looks like a raw integer (no decimal point, very large number),
+        // it was stored before the formatting fix — clear it to avoid misleading display.
+        if (
+          isFinite(n) &&
+          n > 10000 &&
+          !String(sanitized.estimatedOut).includes('.')
+        ) {
+          sanitized.estimatedOut = null
+        }
+      }
+      return sanitized
+    }).filter(Boolean) as SwapHistoryEntry[]
   } catch {
     return []
   }
