@@ -113,6 +113,11 @@ export default function CircleSwapBox() {
   const isOnArcTestnet = chainId === ARC_TESTNET_CHAIN_ID
   const kitKey = process.env.NEXT_PUBLIC_CIRCLE_KIT_KEY
 
+  // ─── Kit key validation ───────────────────────────────────────────────────────
+
+  const kitKeyMissing = !kitKey
+  const kitKeyInvalidFormat = !!kitKey && !kitKey.startsWith('KIT_KEY:')
+
   // ─── Validation ──────────────────────────────────────────────────────────────
 
   function getValidationError(): string | null {
@@ -121,7 +126,8 @@ export default function CircleSwapBox() {
     if (!walletClient) return 'Wallet client unavailable. Try reconnecting.'
     if (tokenIn === tokenOut) return 'tokenIn and tokenOut must be different.'
     if (!isValidAmount(amountIn)) return 'Enter a valid amount greater than zero.'
-    if (!kitKey) return 'NEXT_PUBLIC_CIRCLE_KIT_KEY is not set in your environment.'
+    if (kitKeyMissing) return 'NEXT_PUBLIC_CIRCLE_KIT_KEY is not set in your environment.'
+    if (kitKeyInvalidFormat) return 'Invalid Circle Kit Key format.'
     return null
   }
 
@@ -203,6 +209,33 @@ export default function CircleSwapBox() {
               Arc Testnet
             </span>
           </div>
+
+          {/* Kit key missing banner */}
+          {kitKeyMissing && (
+            <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+              <p className="text-xs font-semibold text-amber-400">
+                Missing <code className="font-mono">NEXT_PUBLIC_CIRCLE_KIT_KEY</code>
+              </p>
+              <p className="mt-1 text-xs text-amber-300/80">
+                Add it in Vercel Environment Variables and redeploy.
+              </p>
+            </div>
+          )}
+
+          {/* Kit key invalid format banner */}
+          {kitKeyInvalidFormat && (
+            <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
+              <p className="text-xs font-semibold text-red-400">
+                Invalid Circle Kit Key format
+              </p>
+              <p className="mt-1 text-xs text-red-300/80">
+                Use an App Kit / Kit Key from Circle Console. Do not use a regular Circle API key.
+              </p>
+              <p className="mt-1 font-mono text-xs text-red-300/60">
+                Expected: KIT_KEY:&#123;keyId&#125;:&#123;keySecret&#125;
+              </p>
+            </div>
+          )}
 
           {/* Connect wallet prompt */}
           {!isConnected && (
