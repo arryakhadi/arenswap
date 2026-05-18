@@ -185,7 +185,7 @@ function PublicStatusTimeline({
 
 function UtilityCard({ title, children, right }: { title: string; children: React.ReactNode; right?: React.ReactNode }) {
   return (
-    <div className="w-full max-w-[34rem] overflow-hidden rounded-3xl border border-white/[0.10] bg-[#10131b]/90 shadow-[0_24px_90px_rgba(0,0,0,0.55),0_0_0_1px_rgba(99,102,241,0.04)] backdrop-blur-xl">
+    <div className="w-full max-w-[34rem] overflow-hidden rounded-3xl border border-white/[0.09] bg-[#10131b]/88 shadow-[0_28px_100px_rgba(0,0,0,0.50),0_0_0_1px_rgba(147,197,253,0.035),inset_0_1px_0_rgba(255,255,255,0.035)] backdrop-blur-xl">
       <div className="p-5">
         <div className="mb-5 flex items-center justify-between gap-3">
           <h2 className="text-base font-semibold text-white">{title}</h2>
@@ -761,7 +761,7 @@ export default function TransactionDashboard() {
 
   return (
     <div className="flex w-full flex-col items-center">
-      <div className="mb-3 flex w-full max-w-[34rem] flex-wrap gap-1.5 rounded-2xl border border-white/[0.10] bg-[#10131b]/75 p-1.5 shadow-xl shadow-black/30 backdrop-blur-xl">
+      <div className="mb-3 flex w-full max-w-[34rem] flex-wrap gap-1.5 rounded-2xl border border-white/[0.09] bg-[#10131b]/72 p-1.5 shadow-xl shadow-black/25 backdrop-blur-xl">
         {MODE_LABELS.map((item) => (
           <button
             key={item.value}

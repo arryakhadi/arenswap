@@ -26,7 +26,7 @@ function Navbar() {
             href="https://faucet.circle.com/"
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1 text-xs font-semibold text-white/50 transition-colors hover:border-white/[0.14] hover:bg-white/[0.07] hover:text-white/80"
+            className="rounded-full border border-blue-300/15 bg-blue-400/[0.07] px-3 py-1 text-xs font-semibold text-blue-100/70 transition-colors hover:border-blue-300/25 hover:bg-blue-400/[0.11] hover:text-blue-50"
           >
             Faucet
           </a>
@@ -49,12 +49,12 @@ export default function Home() {
         }}
       />
       <div
-        className="pointer-events-none fixed inset-0 z-0 opacity-[0.035]"
+        className="pointer-events-none fixed inset-0 z-0 opacity-[0.018]"
         aria-hidden="true"
         style={{
-          backgroundImage: 'linear-gradient(rgba(255,255,255,0.9) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.9) 1px, transparent 1px)',
-          backgroundSize: '48px 48px',
-          maskImage: 'linear-gradient(to bottom, black, transparent 70%)',
+          backgroundImage: 'linear-gradient(rgba(190,210,255,0.55) 1px, transparent 1px), linear-gradient(90deg, rgba(190,210,255,0.55) 1px, transparent 1px)',
+          backgroundSize: '56px 56px',
+          maskImage: 'linear-gradient(to bottom, black, transparent 58%)',
         }}
       />
 

@@ -1171,7 +1171,7 @@ export default function CircleSwapBox() {
       )}
 
       <div className="flex w-full max-w-[34rem] flex-col items-center">
-        <div className="relative w-full overflow-hidden rounded-3xl border border-white/[0.10] bg-[#10131b]/90 shadow-[0_24px_90px_rgba(0,0,0,0.55),0_0_0_1px_rgba(99,102,241,0.04)] backdrop-blur-xl">
+        <div className="relative w-full overflow-hidden rounded-3xl border border-white/[0.09] bg-[#10131b]/88 shadow-[0_28px_100px_rgba(0,0,0,0.50),0_0_0_1px_rgba(147,197,253,0.035),inset_0_1px_0_rgba(255,255,255,0.035)] backdrop-blur-xl">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(59,130,246,0.5) 40%, rgba(99,102,241,0.5) 60%, transparent)' }} aria-hidden="true" />
 
           <div className="p-5">
