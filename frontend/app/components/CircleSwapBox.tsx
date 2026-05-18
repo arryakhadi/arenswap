@@ -26,7 +26,6 @@ import {
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { encodeFunctionData, formatUnits, decodeEventLog } from 'viem'
 import { useSwapHistory } from '@/app/hooks/useSwapHistory'
-import type { SwapHistoryEntry } from '@/app/hooks/useSwapHistory'
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -719,77 +718,6 @@ function ResultCard({
     </div>
   )
 }
-
-// ─── Recent Swaps ─────────────────────────────────────────────────────────────
-
-interface RecentSwapsProps {
-  history: SwapHistoryEntry[]
-  onClear: () => void
-}
-
-function RecentSwaps({ history, onClear }: RecentSwapsProps) {
-  if (history.length === 0) return null
-  return (
-    <div className="mt-6 w-full">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-white/60">Recent Transactions</h3>
-        <button type="button" onClick={onClear} className="text-xs text-white/20 transition-colors hover:text-white/50">Clear</button>
-      </div>
-      <div className="space-y-2">
-        {history.slice(0, 10).map((entry) => {
-          const status = entry.status ?? 'success'
-          const normalizedStatus = status === 'verification_failed' ? 'verification-failed' : status
-          const statusClass = normalizedStatus === 'success'
-            ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300'
-            : normalizedStatus === 'verification-failed'
-              ? 'border-amber-500/25 bg-amber-500/10 text-amber-300'
-              : 'border-red-500/25 bg-red-500/10 text-red-300'
-          const statusLabel = normalizedStatus === 'verification-failed'
-            ? 'Verification failed'
-            : normalizedStatus === 'failed'
-              ? 'Failed'
-              : 'Success'
-
-          return (
-            <div key={entry.id} className="rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4 py-3">
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${statusClass}`}>{statusLabel}</span>
-                <span className="text-[10px] text-white/25">
-                  {new Date(entry.timestamp).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </div>
-              <div className="space-y-1 text-xs">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-white/35">Pair</span>
-                  <span className="font-semibold text-white/70">{entry.tokenIn} &rarr; {entry.tokenOut}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-white/35">Sent</span>
-                  <span className="text-white/55">{entry.amountIn} {entry.tokenIn}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-white/35">Received</span>
-                  <span className="text-white/55">{entry.estimatedOut ? `${entry.estimatedOut} ${entry.tokenOut}` : 'Unavailable'}</span>
-                </div>
-              </div>
-              <div className="mt-2 flex flex-wrap items-center gap-3">
-                {entry.approveTxHash && (
-                  <a href={`${ARC_TESTNET_EXPLORER}/tx/${entry.approveTxHash}`} target="_blank" rel="noopener noreferrer" className="text-[11px] text-white/30 underline underline-offset-2 hover:text-white/50">Approval tx</a>
-                )}
-                {entry.swapTxHash && (
-                  <span className="flex min-w-0 items-center gap-1">
-                    <a href={`${ARC_TESTNET_EXPLORER}/tx/${entry.swapTxHash}`} target="_blank" rel="noopener noreferrer" className="max-w-[140px] truncate text-[11px] text-emerald-500/70 underline underline-offset-2 hover:text-emerald-400">Swap tx {truncateHash(entry.swapTxHash, 6)}</a>
-                    <CopyHashButton hash={entry.swapTxHash} label="Copy recent swap transaction hash" />
-                  </span>
-                )}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
 //  Main component ─
 
 export default function CircleSwapBox() {
@@ -798,7 +726,7 @@ export default function CircleSwapBox() {
   const { data: walletClient } = useWalletClient()
   const publicClient = usePublicClient()
   const { switchChain, isPending: isSwitching } = useSwitchChain()
-  const { history, addEntry, clearHistory } = useSwapHistory()
+  const { addEntry } = useSwapHistory()
 
   const [tokenIn, setTokenIn] = useState<SupportedToken>('USDC')
   const [tokenOut, setTokenOut] = useState<SupportedToken>('EURC')
@@ -1579,8 +1507,6 @@ export default function CircleSwapBox() {
             )}
           </div>
         </div>
-
-        <RecentSwaps history={history} onClear={clearHistory} />
 
         <p className="mt-6 text-center text-xs text-white/20">
           Powered by{' '}
