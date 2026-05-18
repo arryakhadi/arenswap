@@ -761,7 +761,7 @@ export default function TransactionDashboard() {
 
   return (
     <div className="flex w-full flex-col items-center">
-      <div className="mb-3 flex w-full max-w-[34rem] flex-wrap gap-1.5 rounded-2xl border border-white/[0.09] bg-[#10131b]/72 p-1.5 shadow-xl shadow-black/25 backdrop-blur-xl">
+      <div className="mb-2.5 flex w-full max-w-[34rem] flex-wrap gap-1.5 rounded-2xl border border-white/[0.09] bg-[#10131b]/72 p-1.5 shadow-xl shadow-black/25 backdrop-blur-xl">
         {MODE_LABELS.map((item) => (
           <button
             key={item.value}
