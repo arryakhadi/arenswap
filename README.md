@@ -78,9 +78,12 @@ Required Vercel environment variable:
 
 ```text
 CIRCLE_KIT_KEY=KIT_KEY:...
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=...
 ```
 
 `CIRCLE_KIT_KEY` is server-side only. Do not prefix it with `NEXT_PUBLIC_`, do not render it in the browser, and do not send it to the wallet. The frontend calls `frontend/app/api/circle/swap/route.ts`, and that server route calls Circle with the kit key.
+
+`NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` is required for mobile wallet connection through WalletConnect and wallet deep links. Get it from WalletConnect/Reown Cloud, add it to local `frontend/.env.local`, and add it to Vercel Environment Variables. This value is public and safe to expose, unlike `CIRCLE_KIT_KEY`.
 
 Do not use private keys in this project. Swaps, sends, batch sends, and revokes are executed by the connected user wallet only.
 

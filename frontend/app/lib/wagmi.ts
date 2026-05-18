@@ -1,6 +1,7 @@
 'use client'
 
-import { createConfig, http } from 'wagmi'
+import { getDefaultConfig } from '@rainbow-me/rainbowkit'
+import { http } from 'wagmi'
 import { defineChain } from 'viem'
 
 export const arcTestnet = defineChain({
@@ -23,9 +24,15 @@ export const arcTestnet = defineChain({
   testnet: true,
 })
 
-export const wagmiConfig = createConfig({
+export const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? ''
+export const hasWalletConnectProjectId = walletConnectProjectId.trim().length > 0
+
+export const wagmiConfig = getDefaultConfig({
+  appName: 'Arenswap',
+  projectId: hasWalletConnectProjectId ? walletConnectProjectId : 'missing-walletconnect-project-id',
   chains: [arcTestnet],
   transports: {
     [arcTestnet.id]: http('https://rpc.testnet.arc.network'),
   },
+  ssr: true,
 })

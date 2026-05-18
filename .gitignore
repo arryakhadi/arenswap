@@ -35,6 +35,7 @@ docs/
 .env.*.local
 # Allow the example file
 !.env.example
+!frontend/.env.example
 
 #  OS 
 .DS_Store

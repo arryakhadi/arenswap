@@ -13,6 +13,7 @@ import {
 import CircleSwapBox from '@/app/components/CircleSwapBox'
 import { useAddressBook } from '@/app/hooks/useAddressBook'
 import { useSwapHistory, type SwapHistoryEntry, type TransactionType } from '@/app/hooks/useSwapHistory'
+import { hasWalletConnectProjectId } from '@/app/lib/wagmi'
 import {
   ARC_TESTNET_CHAIN_ID,
   ARC_TESTNET_NAME,
@@ -202,6 +203,14 @@ function WalletGate() {
     <div className="flex flex-col items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
       <p className="text-sm text-white/50">Connect your wallet to continue</p>
       <ConnectButton />
+      <p className="max-w-sm text-center text-xs leading-relaxed text-white/32">
+        On mobile, use MetaMask, Rainbow, Coinbase Wallet, or WalletConnect. You can also open this site inside your wallet browser.
+      </p>
+      {!hasWalletConnectProjectId && (
+        <p className="max-w-sm rounded-xl border border-amber-500/20 bg-amber-500/[0.07] px-3 py-2 text-center text-xs leading-relaxed text-amber-300/80">
+          WalletConnect project ID is missing. Mobile wallet connection may not work.
+        </p>
+      )}
     </div>
   )
 }
