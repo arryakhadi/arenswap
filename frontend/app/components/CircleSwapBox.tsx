@@ -732,20 +732,21 @@ function RecentSwaps({ history, onClear }: RecentSwapsProps) {
   return (
     <div className="mt-6 w-full">
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-white/60">Recent Swaps</h3>
+        <h3 className="text-sm font-semibold text-white/60">Recent Transactions</h3>
         <button type="button" onClick={onClear} className="text-xs text-white/20 transition-colors hover:text-white/50">Clear</button>
       </div>
       <div className="space-y-2">
         {history.slice(0, 10).map((entry) => {
           const status = entry.status ?? 'success'
-          const statusClass = status === 'success'
+          const normalizedStatus = status === 'verification_failed' ? 'verification-failed' : status
+          const statusClass = normalizedStatus === 'success'
             ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300'
-            : status === 'verification-failed'
+            : normalizedStatus === 'verification-failed'
               ? 'border-amber-500/25 bg-amber-500/10 text-amber-300'
               : 'border-red-500/25 bg-red-500/10 text-red-300'
-          const statusLabel = status === 'verification-failed'
+          const statusLabel = normalizedStatus === 'verification-failed'
             ? 'Verification failed'
-            : status === 'failed'
+            : normalizedStatus === 'failed'
               ? 'Failed'
               : 'Success'
 

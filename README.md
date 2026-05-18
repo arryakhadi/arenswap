@@ -1,6 +1,18 @@
 # Arenswap
 
-Arenswap is a Next.js frontend for same-chain Circle Swap Kit swaps on Arc Testnet. The current stable implementation keeps Circle API access behind a server-side route, executes swaps with the connected wallet, and verifies success from real token balance changes and transfer logs.
+Arenswap is a Next.js Arc Testnet transaction utility for supported Circle tokens. It keeps the stable Circle Swap Kit flow intact, adds wallet-signed send and management tools, and verifies transaction outcomes from real receipts, balances, allowances, and transfer events where possible.
+
+## Features
+
+- Swap with Circle Swap Kit
+- Send Token
+- Batch Send
+- Transaction History
+- Approval Manager
+- Faucet Helper / Top-up Guide
+- Transaction Receipt Page
+- Address Book
+- Portfolio + Quick Actions
 
 ## Project Structure
 
@@ -11,6 +23,18 @@ arenswap/
 ```
 
 Vercel builds and deploys from `frontend/`.
+
+## Network And Tokens
+
+Arenswap is Arc Testnet only.
+
+Supported tokens:
+
+- `USDC`
+- `EURC`
+- `cirBTC`
+
+The app uses canonical Arc Testnet token addresses from the implementation. Do not replace them with placeholder or fake addresses.
 
 ## Frontend Development
 
@@ -58,35 +82,37 @@ CIRCLE_KIT_KEY=KIT_KEY:...
 
 `CIRCLE_KIT_KEY` is server-side only. Do not prefix it with `NEXT_PUBLIC_`, do not render it in the browser, and do not send it to the wallet. The frontend calls `frontend/app/api/circle/swap/route.ts`, and that server route calls Circle with the kit key.
 
-Do not use private keys in this project. Swaps are executed by the connected user wallet only.
+Do not use private keys in this project. Swaps, sends, batch sends, and revokes are executed by the connected user wallet only.
 
-## Supported Swaps
+## Transaction Integrity
 
-Arenswap supports Arc Testnet swaps between:
+The app must not mark a transaction successful just because a wallet request was submitted.
 
-- `USDC`
-- `EURC`
-- `cirBTC`
+For swaps:
 
-The app uses canonical Arc Testnet token addresses from the implementation. Do not replace them with placeholder or fake addresses.
-
-## Wallet Flow
-
-For ERC-20 inputs, the wallet may ask for two confirmations:
-
-1. Approval, if the Circle Adapter Contract does not already have enough allowance.
-2. Swap confirmation for the final Circle adapter execution transaction.
-
-The app must not mark a swap successful just because a transaction was mined. A mined fee-only or incomplete transaction is not a successful swap.
-
-## Verifying A Successful Swap
-
-After the swap transaction is mined, the app keeps strict verification:
-
-- The result card shows the submitted approval and swap transaction hashes when available.
-- The Arcscan transaction link opens the final swap transaction.
-- Transfer events are decoded from the receipt and tiny service or gas fee transfers are ignored.
+- The result card shows approval and swap transaction hashes when available.
+- The Arcscan link opens the final swap transaction.
+- Transfer events are decoded from the receipt and small service or gas fee transfers are ignored.
 - The input token balance must decrease by the real swap input amount.
 - The output token balance must increase.
 
-If the transaction confirms but those balance changes are not detected, the UI shows a warning instead of a fake success state.
+For sends and batch sends:
+
+- The wallet signs each transfer.
+- The app waits for the transaction receipt.
+- The app checks the expected ERC-20 `Transfer` event where possible.
+- If a receipt confirms but verification fails, the UI records a verification warning instead of fake success.
+
+For approvals:
+
+- The app shows only the known Circle swap adapter spender from the current configuration.
+- Revoke uses `approve(spender, 0)`.
+- The app refetches allowance after confirmation and records whether it reached zero.
+
+## Verifying Transactions
+
+Use the in-app result card, Recent Transactions, `/tx/[hash]` receipt page, and Arcscan links to verify real transaction state. Local history is stored in browser `localStorage` and is only a convenience cache; Arcscan and receipt data are the source of truth for on-chain state.
+
+## Faucet / Top-up
+
+The app shows the connected wallet address, current balances, and low balance warnings. If no faucet URL is already known in the project, use the official Arc Testnet faucet from Circle/Arc documentation.
