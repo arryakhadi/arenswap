@@ -1,20 +1,21 @@
 'use client'
 
 import { ConnectButton } from '@rainbow-me/rainbowkit'
+import Image from 'next/image'
 import Link from 'next/link'
 import TransactionDashboard from '@/app/components/TransactionDashboard'
-
-const BRAND_LOGO_URL = process.env.NEXT_PUBLIC_BRAND_LOGO_URL?.trim() || '/brand/arenswap-logo.png'
 
 function Navbar() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-white/[0.07] bg-[#080a10]/75 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         <Link href="/" className="flex min-w-0 items-center" aria-label="Arenswap home">
-          {/* eslint-disable-next-line @next/next/no-img-element -- Supports optional external public logo URLs without remote image config. */}
-          <img
-            src={BRAND_LOGO_URL}
+          <Image
+            src="/brand/arenswap-logo.png"
             alt="Arenswap"
+            width={164}
+            height={41}
+            priority
             className="h-8 w-auto max-w-[132px] object-contain sm:h-9 sm:max-w-[164px]"
           />
         </Link>
