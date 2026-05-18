@@ -142,7 +142,9 @@ export default function TransactionReceiptPage() {
           )}
           {localTx?.token && <div className="flex items-center justify-between gap-4"><span className="text-white/35">Token</span><span className="text-white/70">{localTx.token}</span></div>}
           {(localTx?.amount ?? localTx?.amountIn) && <div className="flex items-center justify-between gap-4"><span className="text-white/35">Amount</span><span className="text-white/70">{localTx.amount ?? localTx.amountIn}</span></div>}
+          {localTx?.estimatedOut && <div className="flex items-center justify-between gap-4"><span className="text-white/35">Received</span><span className="text-white/70">{localTx.estimatedOut} {localTx.tokenOut ?? ''}</span></div>}
           {localTx?.recipient && <div className="flex items-start justify-between gap-4"><span className="text-white/35">Recipient</span><span className="max-w-[280px] break-all text-right font-mono text-xs text-white/70">{localTx.recipient}</span></div>}
+          {localTx?.approveTxHash && <div className="flex items-start justify-between gap-4"><span className="text-white/35">Approval tx</span><a href={explorerTxUrl(localTx.approveTxHash)} target="_blank" rel="noopener noreferrer" className="max-w-[280px] break-all text-right font-mono text-xs text-blue-300/70 underline underline-offset-2">{localTx.approveTxHash}</a></div>}
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">

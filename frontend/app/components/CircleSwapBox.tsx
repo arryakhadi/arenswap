@@ -460,25 +460,6 @@ function ModalRow({ label, value, highlight }: { label: string; value: string; h
   )
 }
 
-function CopyHashButton({ hash, label = 'Copy transaction hash' }: { hash: string; label?: string }) {
-  const [copied, setCopied] = useState(false)
-
-  function copyHash() {
-    navigator.clipboard.writeText(hash).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1800)
-    }).catch(() => {})
-  }
-
-  return (
-    <button type="button" onClick={copyHash} aria-label={label} className="shrink-0 rounded-md p-1 text-white/30 transition-colors hover:bg-white/[0.06] hover:text-white/60">
-      {copied
-        ? <svg className="h-3.5 w-3.5 text-emerald-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-        : <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" /><path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" /></svg>}
-    </button>
-  )
-}
-
 function QuotePreview({
   tokenIn,
   tokenOut,
@@ -509,7 +490,7 @@ function QuotePreview({
   )
 }
 
-function StatusTimeline({ phase }: { phase: Phase }) {
+function StatusTimeline({ phase, swapTxHash }: { phase: Phase; swapTxHash: string | null }) {
   const walletPhases: Phase[] = ['checking-allowance', 'approval-skipped', 'waiting-approval', 'approval-confirmed', 'waiting-swap']
   const submittedPhases: Phase[] = ['verifying']
   const verifiedPhases: Phase[] = ['success', 'confirmed-no-delta']
@@ -528,25 +509,40 @@ function StatusTimeline({ phase }: { phase: Phase }) {
       </div>
       <div className="space-y-2">
         {publicSteps.map((step) => (
-          <div key={step.key} className="flex items-center gap-3">
-            <span className={`h-2.5 w-2.5 rounded-full ${
-              step.failed
-                ? 'bg-amber-400'
-                : step.done
-                  ? 'bg-emerald-400'
-                  : step.active
-                    ? 'bg-blue-400'
-                    : 'bg-white/15'
-            }`} />
-            <span className={`text-xs ${
-              step.failed
-                ? 'text-amber-300'
-                : step.done
-                  ? 'text-white/65'
-                  : step.active
-                    ? 'text-blue-300'
-                    : 'text-white/30'
-            }`}>{step.label}</span>
+          <div key={step.key}>
+            <div className="flex items-center gap-3">
+              <span className={`h-2.5 w-2.5 rounded-full ${
+                step.failed
+                  ? 'bg-amber-400'
+                  : step.done
+                    ? 'bg-emerald-400'
+                    : step.active
+                      ? 'bg-blue-400'
+                      : 'bg-white/15'
+              }`} />
+              <span className={`text-xs ${
+                step.failed
+                  ? 'text-amber-300'
+                  : step.done
+                    ? 'text-white/65'
+                    : step.active
+                      ? 'text-blue-300'
+                      : 'text-white/30'
+              }`}>{step.label}</span>
+            </div>
+            {step.key === 'verified' && (phase === 'success' || phase === 'confirmed-no-delta') && (
+              <div className="ml-5 mt-1 space-y-1 text-xs">
+                {phase === 'confirmed-no-delta' && <p className="text-amber-300">Status: Verification failed</p>}
+                {swapTxHash && (
+                  <p className="text-white/45">
+                    Swap Tx:{' '}
+                    <a href={`${ARC_TESTNET_EXPLORER}/tx/${swapTxHash}`} target="_blank" rel="noopener noreferrer" className="text-emerald-400 underline underline-offset-2 hover:text-emerald-300">
+                      {truncateHash(swapTxHash)}
+                    </a>
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -554,163 +550,6 @@ function StatusTimeline({ phase }: { phase: Phase }) {
   )
 }
 
-// ─── Result Card ──────────────────────────────────────────────────────────────
-// Handles both 'success' and 'confirmed-no-delta' states.
-
-interface ResultCardProps {
-  phase: Phase
-  tokenIn: SupportedToken
-  tokenOut: SupportedToken
-  amountIn: string
-  estimatedOut: string | null
-  approveTxHash: string | null
-  swapTxHash: string
-  verification: VerificationResult | null
-  onVerify: () => void
-  onNewSwap: () => void
-  verifying: boolean
-}
-
-function ResultCard({
-  phase, tokenIn, tokenOut, amountIn, estimatedOut,
-  approveTxHash, swapTxHash, verification, onVerify, onNewSwap, verifying,
-}: ResultCardProps) {
-  const isSuccess = phase === 'success'
-
-  return (
-    <div className={`mt-4 rounded-2xl border p-4 space-y-3 ${
-      isSuccess
-        ? 'border-emerald-500/30 bg-emerald-500/[0.07]'
-        : 'border-amber-500/30 bg-amber-500/[0.07]'
-    }`}>
-      {/* Status header */}
-      <div className="flex items-center gap-2">
-        {isSuccess ? (
-          <svg className="h-4 w-4 text-emerald-400 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-          </svg>
-        ) : (
-          <svg className="h-4 w-4 text-amber-400 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-          </svg>
-        )}
-        <p className={`text-sm font-semibold ${isSuccess ? 'text-emerald-400' : 'text-amber-400'}`}>
-          {isSuccess ? 'Swap successful!' : 'Transaction confirmed, balance change not detected'}
-        </p>
-      </div>
-
-      {!isSuccess && (
-        <p className="text-xs text-amber-300/70 leading-relaxed">
-          The transaction was mined successfully, but the expected token balance changes were not detected.
-          Check the explorer transaction and token transfer logs.
-        </p>
-      )}
-
-      <div className="space-y-2 text-xs">
-        {/* Amounts */}
-        <div className="flex items-center justify-between">
-          <span className="text-white/40">Swapped</span>
-          <span className="text-white/70 font-medium">{amountIn} {tokenIn} &rarr; {tokenOut}</span>
-        </div>
-
-        {/* Actual delta from verification */}
-        {verification && verification.deltaOut > BigInt(0) && (
-          <div className="flex items-center justify-between">
-            <span className="text-white/40">Received</span>
-            <span className="text-white/70 font-medium">{verification.deltaOutFormatted} {tokenOut}</span>
-          </div>
-        )}
-        {verification && verification.deltaOut === BigInt(0) && estimatedOut && (
-          <div className="flex items-center justify-between">
-            <span className="text-white/40">Est. received</span>
-            <span className="text-white/50 font-medium">{estimatedOut} {tokenOut}</span>
-          </div>
-        )}
-        {!verification && estimatedOut && (
-          <div className="flex items-center justify-between">
-            <span className="text-white/40">Est. received</span>
-            <span className="text-white/70 font-medium">{estimatedOut} {tokenOut}</span>
-          </div>
-        )}
-
-        {/* Transfer events */}
-        {verification?.transfersDetected && (
-          <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2 space-y-1">
-            <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider">Transfer events</p>
-            {verification.transferInAmount && (
-              <div className="flex items-center justify-between">
-                <span className="text-white/30">Sent</span>
-                <span className="text-white/50">{verification.transferInAmount} {tokenIn}</span>
-              </div>
-            )}
-            {verification.transferOutAmount && (
-              <div className="flex items-center justify-between">
-                <span className="text-white/30">Received</span>
-                <span className="text-white/50">{verification.transferOutAmount} {tokenOut}</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Post-swap balances */}
-        {verification && (
-          <div className="border-t border-white/[0.06] pt-2 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-white/30">New {tokenIn} balance</span>
-              <span className="text-white/50 font-medium">{verification.balanceInFormatted} {tokenIn}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-white/30">New {tokenOut} balance</span>
-              <span className="text-white/50 font-medium">{verification.balanceOutFormatted} {tokenOut}</span>
-            </div>
-          </div>
-        )}
-
-        {/* Tx links */}
-        {approveTxHash && (
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-white/40 shrink-0">Approval</span>
-            <a href={`${ARC_TESTNET_EXPLORER}/tx/${approveTxHash}`} target="_blank" rel="noopener noreferrer" className="text-white/40 underline underline-offset-2 hover:text-white/60 truncate max-w-[160px]">
-              {truncateHash(approveTxHash)}
-            </a>
-          </div>
-        )}
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-white/40 shrink-0">Swap Tx</span>
-          <div className="flex items-center gap-1.5 min-w-0">
-            <a href={`${ARC_TESTNET_EXPLORER}/tx/${swapTxHash}`} target="_blank" rel="noopener noreferrer" className={`underline underline-offset-2 truncate max-w-[130px] ${isSuccess ? 'text-emerald-400 hover:text-emerald-300' : 'text-amber-400 hover:text-amber-300'}`}>
-              {truncateHash(swapTxHash)}
-            </a>
-            <CopyHashButton hash={swapTxHash} label="Copy swap transaction hash" />
-          </div>
-        </div>
-
-        {/* Verify button */}
-        <button
-          type="button"
-          onClick={onVerify}
-          disabled={verifying}
-          className="mt-1 flex items-center gap-1.5 text-xs text-white/25 transition-colors hover:text-white/50 disabled:opacity-30"
-        >
-          <svg className={`h-3 w-3 ${verifying ? 'animate-spin' : ''}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-          </svg>
-          {verifying ? 'Verifying\u2026' : 'Verify transaction'}
-        </button>
-
-        {isSuccess && (
-          <button
-            type="button"
-            onClick={onNewSwap}
-            className="mt-2 w-full rounded-xl border border-emerald-500/25 bg-emerald-500/10 py-2.5 text-xs font-semibold text-emerald-200 transition-colors hover:bg-emerald-500/15"
-          >
-            New swap
-          </button>
-        )}
-      </div>
-    </div>
-  )
-}
 //  Main component ─
 
 export default function CircleSwapBox() {
@@ -732,7 +571,6 @@ export default function CircleSwapBox() {
   const [estimatedOut, setEstimatedOut] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [verification, setVerification] = useState<VerificationResult | null>(null)
-  const [verifying, setVerifying] = useState(false)
   const [ignoredTransferReasons, setIgnoredTransferReasons] = useState<string[]>([])
 
   const [balanceIn, setBalanceIn] = useState<string | null>(null)
@@ -745,7 +583,7 @@ export default function CircleSwapBox() {
 
   const isSwappingRef = useRef(false)
   const phaseRef = useRef<Phase>('idle')
-  // Stores the last swap tx hash for the "Verify transaction" button
+  // Stores the last swap tx hash for compact status display and verification.
   const lastSwapTxRef = useRef<string | null>(null)
   // Stores pre-swap balance snapshot
   const snapshotRef = useRef<BalanceSnapshot | null>(null)
@@ -971,30 +809,6 @@ export default function CircleSwapBox() {
     return { result, passed, ignoredReasons: transfers.ignoredReasons }
   }
 
-  //  Manual verify button 
-
-  async function handleVerify() {
-    const txHash = lastSwapTxRef.current
-    const snapshot = snapshotRef.current
-    if (!txHash || !snapshot || verifying) return
-    setVerifying(true)
-    try {
-      const { result, passed, ignoredReasons } = await verifySwap(txHash, snapshot, tokenIn, tokenOut, amountIn)
-      setVerification(result)
-      setIgnoredTransferReasons(ignoredReasons)
-      // Update displayed balances
-      startTransition(() => {
-        setBalanceIn(result.balanceInFormatted)
-        setBalanceOut(result.balanceOutFormatted)
-      })
-      setPhaseSync(passed ? 'success' : 'confirmed-no-delta')
-    } catch {
-      // Verification failed  leave phase as-is
-    } finally {
-      setVerifying(false)
-    }
-  }
-
   //  Max button 
 
   function handleMax() {
@@ -1070,12 +884,6 @@ export default function CircleSwapBox() {
     setAmountIn(canKeepAmount ? amountIn : '')
     clearSwapResult()
     fetchBalances(nextTokenIn, nextTokenOut).catch(() => {})
-  }
-
-  function handleNewSwap() {
-    setAmountIn('')
-    clearSwapResult()
-    fetchBalances(tokenIn, tokenOut).catch(() => {})
   }
 
   function handleSwapButtonClick() {
@@ -1413,7 +1221,7 @@ export default function CircleSwapBox() {
 
               <QuotePreview tokenIn={tokenIn} tokenOut={tokenOut} amountIn={amountIn} estimatedOut={estimatedOut} />
 
-              {(isActive || showResult || phase === 'error') && <StatusTimeline phase={phase} />}
+              {(isActive || showResult || phase === 'error') && <StatusTimeline phase={phase} swapTxHash={swapTxHash} />}
 
               {!isActive && isConnected && chainId === ARC_TESTNET_CHAIN_ID && (
                 <div className="flex items-center justify-between">
@@ -1443,22 +1251,6 @@ export default function CircleSwapBox() {
               <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
                 <p className="text-xs font-semibold text-red-400">{error}</p>
               </div>
-            )}
-
-            {showResult && swapTxHash && (
-              <ResultCard
-                phase={phase}
-                tokenIn={tokenIn}
-                tokenOut={tokenOut}
-                amountIn={amountIn}
-                estimatedOut={estimatedOut}
-                approveTxHash={approveTxHash}
-                swapTxHash={swapTxHash}
-                verification={verification}
-                onVerify={handleVerify}
-                onNewSwap={handleNewSwap}
-                verifying={verifying}
-              />
             )}
 
             {isDev && (

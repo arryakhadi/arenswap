@@ -736,6 +736,7 @@ function TransactionList({ entries }: { entries: SwapHistoryEntry[] }) {
       {entries.map((entry) => {
         const type = entry.type ?? 'swap'
         const txHash = entry.txHash ?? entry.swapTxHash ?? entry.approvalTxHash ?? null
+        const approvalHash = entry.approvalTxHash ?? entry.approveTxHash ?? null
         const status = String(entry.status).replace('-', '_')
         const statusClass = status === 'success'
           ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300'
@@ -749,13 +750,20 @@ function TransactionList({ entries }: { entries: SwapHistoryEntry[] }) {
               <span className="text-[10px] text-white/25">{new Date(entry.timestamp).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
             </div>
             <p className="text-xs font-semibold text-white/70">{type === 'swap' ? `${entry.tokenIn} -> ${entry.tokenOut}` : `${type.replace('_', ' ')} ${entry.amount ?? entry.amountIn ?? ''} ${entry.token ?? ''}`}</p>
+            {type === 'swap' && (
+              <div className="mt-1 space-y-0.5 text-xs text-white/35">
+                {entry.amountIn && <p>Sent {entry.amountIn} {entry.tokenIn}</p>}
+                {entry.estimatedOut && <p>Received {entry.estimatedOut} {entry.tokenOut}</p>}
+              </div>
+            )}
             {entry.recipient && <p className="mt-1 truncate text-xs text-white/35">To {entry.recipient}</p>}
             {entry.verificationSummary && <p className="mt-1 text-xs text-white/35">{entry.verificationSummary}</p>}
-            {txHash && (
+            {(txHash || approvalHash) && (
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <a href={`/tx/${txHash}`} className="text-[11px] text-blue-300/70 underline underline-offset-2">Receipt</a>
-                <a href={explorerTxUrl(txHash)} target="_blank" rel="noopener noreferrer" className="text-[11px] text-emerald-500/70 underline underline-offset-2">Arcscan {truncateHash(txHash)}</a>
-                <CopyButton value={txHash} label="Copy tx" />
+                {txHash && <a href={`/tx/${txHash}`} className="text-[11px] text-blue-300/70 underline underline-offset-2">Receipt</a>}
+                {approvalHash && <a href={explorerTxUrl(approvalHash)} target="_blank" rel="noopener noreferrer" className="text-[11px] text-white/35 underline underline-offset-2 hover:text-white/60">Approval {truncateHash(approvalHash)}</a>}
+                {txHash && <a href={explorerTxUrl(txHash)} target="_blank" rel="noopener noreferrer" className="text-[11px] text-emerald-500/70 underline underline-offset-2">Swap {truncateHash(txHash)}</a>}
+                {txHash && <CopyButton value={txHash} label="Copy tx" />}
               </div>
             )}
           </div>
