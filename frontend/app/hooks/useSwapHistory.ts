@@ -13,16 +13,25 @@ import { useCallback, useEffect, useState, startTransition } from 'react'
 const STORAGE_KEY = 'arenswap_history_v1'
 const MAX_ENTRIES = 10
 
+export type SwapHistoryStatus = 'success' | 'failed' | 'verification-failed'
+
 export interface SwapHistoryEntry {
   id: string            // unique: timestamp + txHash prefix
   timestamp: number     // Unix ms
   chainId: number
+  status: SwapHistoryStatus
   tokenIn: string
   tokenOut: string
   amountIn: string
   estimatedOut: string | null
   approveTxHash: string | null
-  swapTxHash: string
+  swapTxHash: string | null
+  errorMessage?: string | null
+}
+
+function sanitizeStatus(status: unknown): SwapHistoryStatus {
+  if (status === 'failed' || status === 'verification-failed') return status
+  return 'success'
 }
 
 function loadHistory(): SwapHistoryEntry[] {
@@ -38,7 +47,14 @@ function loadHistory(): SwapHistoryEntry[] {
     // We keep the entry but null out the bad estimatedOut rather than dropping it.
     return (parsed as SwapHistoryEntry[]).map((entry) => {
       if (!entry || typeof entry !== 'object') return null
-      const sanitized = { ...entry }
+      const sanitized: SwapHistoryEntry = {
+        ...entry,
+        status: sanitizeStatus((entry as Partial<SwapHistoryEntry>).status),
+        estimatedOut: entry.estimatedOut ?? null,
+        approveTxHash: entry.approveTxHash ?? null,
+        swapTxHash: entry.swapTxHash ?? null,
+        errorMessage: entry.errorMessage ?? null,
+      }
       if (sanitized.estimatedOut !== null && sanitized.estimatedOut !== undefined) {
         const n = parseFloat(String(sanitized.estimatedOut))
         // If the value looks like a raw integer (no decimal point, very large number),
@@ -51,7 +67,7 @@ function loadHistory(): SwapHistoryEntry[] {
           sanitized.estimatedOut = null
         }
       }
-      return sanitized
+      return sanitized.swapTxHash || sanitized.status === 'failed' ? sanitized : null
     }).filter(Boolean) as SwapHistoryEntry[]
   } catch {
     return []
@@ -77,7 +93,8 @@ export function useSwapHistory() {
   }, [])
 
   const addEntry = useCallback((entry: Omit<SwapHistoryEntry, 'id'>) => {
-    const id = `${entry.timestamp}-${entry.swapTxHash.slice(2, 10)}`
+    const hashPart = entry.swapTxHash ? entry.swapTxHash.slice(2, 10) : entry.status
+    const id = `${entry.timestamp}-${hashPart}`
     const newEntry: SwapHistoryEntry = { ...entry, id }
     setHistory((prev) => {
       const updated = [newEntry, ...prev].slice(0, MAX_ENTRIES)
