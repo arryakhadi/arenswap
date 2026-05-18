@@ -826,7 +826,7 @@ export default function CircleSwapBox() {
   function getValidationError(): string | null {
     if (!isConnected) return 'Wallet not connected.'
     if (chainId !== ARC_TESTNET_CHAIN_ID) return 'Please switch to Arc Testnet.'
-    if (!walletClient) return 'Wallet client unavailable. Try reconnecting.'
+    if (!walletClient) return 'Wallet connection is not ready. Reconnect your wallet and try again.'
     if (tokenIn === tokenOut) return 'Select different tokens.'
     if (!isValidAmount(amountIn)) return 'Enter a valid amount greater than zero.'
     if (pairUnavailable) return 'This pair is temporarily unavailable on Arc Testnet.'

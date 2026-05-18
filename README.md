@@ -111,7 +111,7 @@ For approvals:
 
 ## Verifying Transactions
 
-Use the in-app result card, Recent Transactions, `/tx/[hash]` receipt page, and Arcscan links to verify real transaction state. Local history is stored in browser `localStorage` and is only a convenience cache; Arcscan and receipt data are the source of truth for on-chain state.
+Use the compact swap status link, Recent Transactions, `/tx/[hash]` receipt page, and Arcscan links to verify real transaction state. Local history is stored in browser `localStorage` and is only a convenience cache; Arcscan and receipt data are the source of truth for on-chain state.
 
 ## Faucet / Top-up
 

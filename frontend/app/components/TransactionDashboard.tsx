@@ -282,7 +282,7 @@ function SendMode({ presetToken }: { presetToken?: SupportedToken }) {
   const validation = useMemo(() => {
     if (!isConnected) return 'Wallet not connected.'
     if (chainId !== ARC_TESTNET_CHAIN_ID) return 'Please switch to Arc Testnet.'
-    if (!walletClient || !publicClient) return 'Wallet client unavailable.'
+    if (!walletClient || !publicClient) return 'Wallet connection is not ready. Reconnect your wallet and try again.'
     if (!isAddress(recipient)) return 'Enter a valid recipient address.'
     if (recipient.toLowerCase() === zeroAddress.toLowerCase()) return 'Recipient cannot be the zero address.'
     if (!parsedAmount) return 'Enter an amount greater than zero.'
@@ -377,7 +377,7 @@ function SendMode({ presetToken }: { presetToken?: SupportedToken }) {
           <div className="space-y-1">
             <FieldLabel>Token</FieldLabel>
             <TokenSelect value={token} onChange={setToken} disabled={status === 'pending'} />
-            <p className="text-xs text-white/30">Balance: {loading ? 'loading...' : balances[token] !== null ? `${formatTokenAmount(balances[token]!, token)} ${token}` : 'unavailable'}</p>
+            <p className="text-xs text-white/30">Balance: {loading ? 'Checking balance...' : balances[token] !== null ? `${formatTokenAmount(balances[token]!, token)} ${token}` : 'Balance unavailable. Refresh or check your RPC connection.'}</p>
           </div>
           <div className="space-y-1">
             <FieldLabel>Recipient</FieldLabel>
@@ -402,12 +402,16 @@ function SendMode({ presetToken }: { presetToken?: SupportedToken }) {
               <button type="button" onClick={() => addOrUpdate(label, recipient)} className="rounded-lg border border-white/[0.08] px-3 py-2 text-xs font-semibold text-white/45 hover:text-white/75">Save</button>
             </div>
             <div className="max-h-24 space-y-1 overflow-auto">
-              {entries.map((entry) => (
-                <div key={entry.id} className="flex items-center justify-between gap-2 text-xs text-white/40">
-                  <button type="button" onClick={() => setRecipient(entry.address)} className="min-w-0 truncate text-left hover:text-white/70">{entry.label}: {truncateHash(entry.address)}</button>
-                  <button type="button" onClick={() => remove(entry.id)} className="text-white/25 hover:text-red-300">Delete</button>
-                </div>
-              ))}
+              {entries.length === 0 ? (
+                <p className="text-xs text-white/30">No saved addresses yet. Enter a recipient and label, then save it here.</p>
+              ) : (
+                entries.map((entry) => (
+                  <div key={entry.id} className="flex items-center justify-between gap-2 text-xs text-white/40">
+                    <button type="button" onClick={() => setRecipient(entry.address)} className="min-w-0 truncate text-left hover:text-white/70">{entry.label}: {truncateHash(entry.address)}</button>
+                    <button type="button" onClick={() => remove(entry.id)} className="text-white/25 hover:text-red-300">Delete</button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
           <PrimaryButton disabled={!!validation || status === 'pending'} onClick={() => setStatus('review')}>
@@ -561,11 +565,12 @@ function PortfolioMode({ setMode, setPresetToken }: { setMode: (mode: Mode) => v
               <CopyButton value={address!} />
             </div>
           </div>
+          {loading && <p className="rounded-xl border border-blue-500/15 bg-blue-500/[0.06] px-4 py-3 text-xs text-blue-200/70">Checking Arc Testnet token balances...</p>}
           {SUPPORTED_TOKENS.map((token) => (
             <div key={token} className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-sm font-semibold text-white">{token}</span>
-                <span className="text-sm text-white/60">{loading ? 'loading...' : balances[token] !== null ? formatTokenAmount(balances[token]!, token) : 'unavailable'}</span>
+                <span className="text-sm text-white/60">{loading ? 'Checking...' : balances[token] !== null ? formatTokenAmount(balances[token]!, token) : 'Unavailable'}</span>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <button type="button" onClick={() => { setPresetToken(token); setMode('swap') }} className="rounded-xl border border-white/[0.08] py-2 text-xs font-semibold text-white/45 hover:text-white/75">Swap</button>
@@ -591,6 +596,8 @@ function ApprovalsMode() {
   const [loading, setLoading] = useState(false)
   const [reviewToken, setReviewToken] = useState<SupportedToken | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const hasLoadedAllowances = SUPPORTED_TOKENS.some((token) => allowances[token] !== null)
+  const hasActiveAllowance = SUPPORTED_TOKENS.some((token) => (allowances[token] ?? BigInt(0)) > BigInt(0))
 
   const refresh = useCallback(async () => {
     if (!address || !publicClient || chainId !== ARC_TESTNET_CHAIN_ID) return
@@ -675,12 +682,15 @@ function ApprovalsMode() {
               <div key={token} className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <span className="text-sm font-semibold text-white">{token}</span>
-                  <span className="text-xs text-white/50">{loading ? 'loading...' : allowance !== null ? `${formatTokenAmount(allowance, token)} ${token}` : 'unavailable'}</span>
+                  <span className="text-xs text-white/50">{loading ? 'Checking...' : allowance !== null ? `${formatTokenAmount(allowance, token)} ${token}` : 'Unavailable'}</span>
                 </div>
                 <button type="button" onClick={() => setReviewToken(token)} disabled={!allowance || allowance <= BigInt(0) || loading} className="w-full rounded-xl border border-white/[0.08] py-2 text-xs font-semibold text-white/45 hover:text-white/75 disabled:cursor-not-allowed disabled:opacity-30">Revoke</button>
               </div>
             )
           })}
+          {hasLoadedAllowances && !hasActiveAllowance && !loading && (
+            <p className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-xs text-white/35">No active allowances found for the known Circle swap spender.</p>
+          )}
           <PrimaryButton disabled={loading} onClick={refresh}>{loading ? 'Refreshing...' : 'Refresh allowances'}</PrimaryButton>
           {message && <p className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-xs text-white/45">{message}</p>}
         </div>
@@ -706,7 +716,16 @@ function HistoryMode() {
           <button type="button" onClick={clearFailed} className="rounded-xl border border-white/[0.08] px-3 py-2 text-xs font-semibold text-white/35 hover:text-white/70">Clear failed</button>
           <button type="button" onClick={clearHistory} className="rounded-xl border border-white/[0.08] px-3 py-2 text-xs font-semibold text-white/35 hover:text-white/70">Clear all</button>
         </div>
-        {filtered.length === 0 ? <p className="text-sm text-white/35">No local transactions yet.</p> : <TransactionList entries={filtered} />}
+        {filtered.length === 0 ? (
+          <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4 py-5">
+            <p className="text-sm font-semibold text-white/55">No transactions to show.</p>
+            <p className="mt-1 text-xs leading-relaxed text-white/35">
+              {filter === 'all'
+                ? 'Completed swaps, sends, batch sends, and revokes will appear here after wallet confirmation and verification.'
+                : `No ${filter.replace('_', ' ')} records are stored locally yet.`}
+            </p>
+          </div>
+        ) : <TransactionList entries={filtered} />}
       </div>
     </UtilityCard>
   )
