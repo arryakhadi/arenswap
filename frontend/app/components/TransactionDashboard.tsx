@@ -143,10 +143,8 @@ type PublicStepState = 'complete' | 'active' | 'muted' | 'warning' | 'failed'
 
 function PublicStatusTimeline({
   steps,
-  details,
 }: {
   steps: Array<{ key: string; label: string; state: PublicStepState }>
-  details?: Array<{ label: string; value: string }>
 }) {
   const isSettled = steps.every((step) => step.state !== 'active')
   return (
@@ -183,19 +181,6 @@ function PublicStatusTimeline({
           </div>
         ))}
       </div>
-      {details && details.length > 0 && (
-        <details className="mt-4">
-          <summary className="cursor-pointer text-xs font-semibold text-white/30 transition-colors hover:text-white/55">Show details</summary>
-          <div className="mt-3 space-y-2 border-t border-white/[0.06] pt-3">
-            {details.map((detail) => (
-              <div key={`${detail.label}-${detail.value}`} className="flex items-start justify-between gap-3 text-xs">
-                <span className="text-white/30">{detail.label}</span>
-                <span className="max-w-[220px] break-words text-right text-white/55">{detail.value}</span>
-              </div>
-            ))}
-          </div>
-        </details>
-      )}
     </div>
   )
 }
@@ -316,11 +301,6 @@ function SendMode({ presetToken }: { presetToken?: SupportedToken }) {
     { key: 'submitted', label: sendHasFailed && txHash ? 'Transaction failed' : 'Transaction submitted', state: sendHasFailed && txHash ? 'failed' : status === 'pending' && txHash ? 'active' : status === 'success' || status === 'verification_failed' ? 'complete' : 'muted' },
     { key: 'verified', label: status === 'verification_failed' ? 'Verification warning' : 'Verified', state: status === 'verification_failed' ? 'warning' : status === 'success' ? 'complete' : 'muted' },
   ] satisfies Array<{ key: string; label: string; state: PublicStepState }>
-  const sendDetails = [
-    { label: 'Internal status', value: status },
-    ...(txHash ? [{ label: 'Transaction hash', value: txHash }] : []),
-    ...(message ? [{ label: 'Message', value: message }] : []),
-  ]
 
   async function executeSend() {
     if (validation || !address || !walletClient || !publicClient || !parsedAmount || lockRef.current) return
@@ -435,7 +415,7 @@ function SendMode({ presetToken }: { presetToken?: SupportedToken }) {
           <PrimaryButton disabled={!!validation || status === 'pending'} onClick={() => setStatus('review')}>
             {status === 'pending' ? 'Waiting for wallet...' : 'Send'}
           </PrimaryButton>
-          {showSendStatus && <PublicStatusTimeline steps={sendSteps} details={sendDetails} />}
+          {showSendStatus && <PublicStatusTimeline steps={sendSteps} />}
           {validation && <p className="text-center text-xs text-white/30">{validation}</p>}
           {message && <p className={`rounded-xl border px-4 py-3 text-xs ${status === 'success' ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300' : 'border-amber-500/25 bg-amber-500/10 text-amber-300'}`}>{message}</p>}
           {txHash && <a href={explorerTxUrl(txHash)} target="_blank" rel="noopener noreferrer" className="block text-center text-xs text-blue-300/70 underline underline-offset-2">View {truncateHash(txHash)} on Arcscan</a>}
@@ -473,11 +453,6 @@ function BatchMode() {
     { key: 'submitted', label: batchFailed ? 'Transaction failed' : 'Transaction submitted', state: batchFailed ? 'failed' : running && results.length > 0 ? 'active' : results.length > 0 ? 'complete' : 'muted' },
     { key: 'verified', label: batchVerificationFailed ? 'Verification warning' : 'Verified', state: batchVerificationFailed ? 'warning' : batchAllConfirmed ? 'complete' : 'muted' },
   ] satisfies Array<{ key: string; label: string; state: PublicStepState }>
-  const batchDetails = [
-    { label: 'Recipients', value: String(rows.length) },
-    { label: 'Completed transactions', value: String(results.length) },
-    { label: 'Batch mode', value: 'Sequential wallet transactions' },
-  ]
 
   function importCsv() {
     const next = csv.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).slice(0, 5).map((line) => {
@@ -564,7 +539,7 @@ function BatchMode() {
           <button type="button" onClick={importCsv} disabled={running} className="text-xs font-semibold text-white/40 hover:text-white/70">Import CSV rows</button>
           <p className="text-xs text-white/35">Total: {formatTokenAmount(total, token)} {token}</p>
           <PrimaryButton disabled={invalid || running} onClick={() => setReview(true)}>{running ? 'Batch running...' : 'Review batch'}</PrimaryButton>
-          {showBatchStatus && <PublicStatusTimeline steps={batchSteps} details={batchDetails} />}
+          {showBatchStatus && <PublicStatusTimeline steps={batchSteps} />}
           {results.length > 0 && <div className="space-y-2">{results.map((result, index) => <div key={`${result.recipient}-${index}`} className="flex items-center justify-between gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-xs"><span className="truncate text-white/45">{truncateHash(result.recipient)}</span><span className="text-white/65">{result.status}</span></div>)}</div>}
         </div>
       )}

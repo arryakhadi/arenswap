@@ -509,23 +509,7 @@ function QuotePreview({
   )
 }
 
-function StatusTimeline({ phase, approveTxHash }: { phase: Phase; approveTxHash: string | null }) {
-  const approvalLabel = approveTxHash
-    ? 'Approval required'
-    : phase === 'approval-skipped' || phase === 'waiting-swap' || phase === 'verifying' || phase === 'success' || phase === 'confirmed-no-delta'
-      ? 'Approval skipped'
-      : 'Approval required / Approval skipped'
-
-  const detailedSteps = [
-    { key: 'preparing', label: 'Preparing', done: phase !== 'idle' && phase !== 'preparing', active: phase === 'preparing' || phase === 'checking-allowance' },
-    { key: 'approval-mode', label: approvalLabel, done: phase === 'approval-skipped' || phase === 'waiting-approval' || phase === 'approval-confirmed' || phase === 'waiting-swap' || phase === 'verifying' || phase === 'success' || phase === 'confirmed-no-delta', active: phase === 'checking-allowance' },
-    { key: 'waiting-approval', label: 'Waiting for approval', done: phase === 'approval-confirmed' || phase === 'waiting-swap' || phase === 'verifying' || phase === 'success' || phase === 'confirmed-no-delta', active: phase === 'waiting-approval', hidden: approvalLabel === 'Approval skipped' },
-    { key: 'approval-confirmed', label: 'Approval confirmed', done: phase === 'waiting-swap' || phase === 'verifying' || phase === 'success' || phase === 'confirmed-no-delta', active: phase === 'approval-confirmed', hidden: approvalLabel === 'Approval skipped' },
-    { key: 'waiting-swap', label: 'Submitting swap', done: phase === 'verifying' || phase === 'success' || phase === 'confirmed-no-delta', active: phase === 'waiting-swap' },
-    { key: 'swap-confirmed', label: 'Swap confirmed', done: phase === 'verifying' || phase === 'success' || phase === 'confirmed-no-delta', active: false },
-    { key: 'verifying', label: 'Verifying transfer events', done: phase === 'success' || phase === 'confirmed-no-delta', active: phase === 'verifying' },
-    { key: 'final', label: phase === 'confirmed-no-delta' ? 'Verification failed' : 'Success', done: phase === 'success' || phase === 'confirmed-no-delta', active: false, failed: phase === 'confirmed-no-delta' },
-  ].filter((step) => !step.hidden)
+function StatusTimeline({ phase }: { phase: Phase }) {
   const walletPhases: Phase[] = ['checking-allowance', 'approval-skipped', 'waiting-approval', 'approval-confirmed', 'waiting-swap']
   const submittedPhases: Phase[] = ['verifying']
   const verifiedPhases: Phase[] = ['success', 'confirmed-no-delta']
@@ -566,33 +550,6 @@ function StatusTimeline({ phase, approveTxHash }: { phase: Phase; approveTxHash:
           </div>
         ))}
       </div>
-      <details className="mt-4">
-        <summary className="cursor-pointer text-xs font-semibold text-white/30 transition-colors hover:text-white/55">Show details</summary>
-        <div className="mt-3 space-y-2 border-t border-white/[0.06] pt-3">
-          {detailedSteps.map((step) => (
-            <div key={step.key} className="flex items-center gap-3">
-              <span className={`h-2 w-2 rounded-full ${
-                step.failed
-                  ? 'bg-amber-400'
-                  : step.done
-                    ? 'bg-emerald-400'
-                    : step.active
-                      ? 'bg-blue-400'
-                      : 'bg-white/15'
-              }`} />
-              <span className={`text-xs ${
-                step.failed
-                  ? 'text-amber-300'
-                  : step.done
-                    ? 'text-white/55'
-                    : step.active
-                      ? 'text-blue-300'
-                      : 'text-white/25'
-              }`}>{step.label}</span>
-            </div>
-          ))}
-        </div>
-      </details>
     </div>
   )
 }
@@ -1456,7 +1413,7 @@ export default function CircleSwapBox() {
 
               <QuotePreview tokenIn={tokenIn} tokenOut={tokenOut} amountIn={amountIn} estimatedOut={estimatedOut} />
 
-              {(isActive || showResult || phase === 'error') && <StatusTimeline phase={phase} approveTxHash={approveTxHash} />}
+              {(isActive || showResult || phase === 'error') && <StatusTimeline phase={phase} />}
 
               {!isActive && isConnected && chainId === ARC_TESTNET_CHAIN_ID && (
                 <div className="flex items-center justify-between">
