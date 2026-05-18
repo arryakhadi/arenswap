@@ -16,7 +16,7 @@ function Navbar() {
             width={164}
             height={41}
             priority
-            className="h-8 w-auto max-w-[132px] object-contain sm:h-9 sm:max-w-[164px]"
+            className="h-7 w-auto max-w-[120px] object-contain sm:h-8 sm:max-w-[150px]"
           />
         </Link>
         <div className="flex items-center gap-3">
