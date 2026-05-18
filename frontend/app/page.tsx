@@ -1,7 +1,6 @@
 'use client'
 
 import { ConnectButton } from '@rainbow-me/rainbowkit'
-import Image from 'next/image'
 import Link from 'next/link'
 import TransactionDashboard from '@/app/components/TransactionDashboard'
 
@@ -9,15 +8,13 @@ function Navbar() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-white/[0.07] bg-[#080a10]/75 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-        <Link href="/" className="flex min-w-0 items-center" aria-label="Arenswap home">
-          <Image
-            src="/brand/arenswap-logo.png"
-            alt="Arenswap"
-            width={164}
-            height={41}
-            priority
-            className="h-7 w-auto max-w-[120px] object-contain sm:h-8 sm:max-w-[150px]"
-          />
+        <Link href="/" className="flex min-w-0 items-center gap-2.5" aria-label="Arenswap home">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-sm font-bold text-white shadow-lg shadow-blue-500/25">
+            A
+          </div>
+          <span className="truncate text-lg font-semibold tracking-tight text-white">
+            Aren<span className="text-blue-400">swap</span>
+          </span>
         </Link>
         <div className="flex items-center gap-3">
           <div className="hidden items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 sm:flex">

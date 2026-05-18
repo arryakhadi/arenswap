@@ -85,14 +85,6 @@ NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=...
 
 `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` is required for mobile wallet connection through WalletConnect and wallet deep links. Get it from WalletConnect/Reown Cloud, add it to local `frontend/.env.local`, and add it to Vercel Environment Variables. This value is public and safe to expose, unlike `CIRCLE_KIT_KEY`.
 
-Optional public branding variable:
-
-```text
-NEXT_PUBLIC_BRAND_LOGO_URL=https://example.com/logo.png
-```
-
-Use `NEXT_PUBLIC_BRAND_LOGO_URL` only for a public logo image URL. If it is not set, the header uses `frontend/public/brand/arenswap-logo.png`.
-
 Do not use private keys in this project. Swaps, sends, batch sends, and revokes are executed by the connected user wallet only.
 
 ## Transaction Integrity
