@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Arenswap — Stablecoin FX on Arc',
-  description: 'Swap USDC to EURC instantly on the Arc Network.',
+  title: 'Arenswap',
+  description: 'Arc Testnet transaction utility for USDC, EURC, and cirBTC.',
 }
 
 export default function RootLayout({
