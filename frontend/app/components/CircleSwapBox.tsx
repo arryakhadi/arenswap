@@ -473,6 +473,7 @@ function QuotePreview({
   estimatedOut: string | null
 }) {
   const rate = computeRate(amountIn, estimatedOut)
+  const hasAmount = isValidAmount(amountIn)
 
   return (
     <div className="rounded-2xl border border-white/[0.06] bg-white/[0.025] p-4">
@@ -480,13 +481,17 @@ function QuotePreview({
         <p className="text-xs font-semibold uppercase tracking-wider text-white/35">Quote preview</p>
         <span className="rounded-full border border-white/[0.08] px-2 py-0.5 text-[10px] font-medium text-white/40">{ARC_TESTNET_NAME}</span>
       </div>
-      <div className="space-y-2 text-xs">
-        <ModalRow label="Pair" value={`${tokenIn} -> ${tokenOut}`} highlight />
-        <ModalRow label="Input" value={isValidAmount(amountIn) ? `${amountIn} ${tokenIn}` : `0 ${tokenIn}`} />
-        <ModalRow label="Estimated output" value={estimatedOut ? `${estimatedOut} ${tokenOut}` : 'Final quote will be verified during swap preparation.'} />
-        <ModalRow label="Exchange rate" value={rate ? `1 ${tokenIn} = ${rate} ${tokenOut}` : 'Final quote will be verified during swap preparation.'} />
-        <ModalRow label="Expected network" value={ARC_TESTNET_NAME} />
-      </div>
+      {!hasAmount ? (
+        <p className="text-xs leading-relaxed text-white/38">Enter an amount to preview your quote.</p>
+      ) : (
+        <div className="space-y-2 text-xs">
+          <ModalRow label="Pair" value={`${tokenIn} -> ${tokenOut}`} highlight />
+          <ModalRow label="Input" value={`${amountIn} ${tokenIn}`} />
+          <ModalRow label="Estimated output" value={estimatedOut ? `${estimatedOut} ${tokenOut}` : 'Final quote will be verified during swap preparation.'} />
+          <ModalRow label="Exchange rate" value={rate ? `1 ${tokenIn} = ${rate} ${tokenOut}` : 'Final quote will be verified during swap preparation.'} />
+          <ModalRow label="Expected network" value={ARC_TESTNET_NAME} />
+        </div>
+      )}
     </div>
   )
 }
@@ -1183,10 +1188,10 @@ export default function CircleSwapBox() {
 
             {!isConnected && (
               <div className="mb-4 flex flex-col items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
-                <p className="text-sm text-white/50">Connect your wallet to swap</p>
-                <ConnectButton />
+                <p className="text-center text-sm text-white/55">Connect your wallet to start using Arenswap on Arc Testnet.</p>
+                <ConnectButton label="Connect Wallet" />
                 <p className="max-w-sm text-center text-xs leading-relaxed text-white/32">
-                  On mobile, use MetaMask, Rainbow, Coinbase Wallet, or WalletConnect. You can also open this site inside your wallet browser.
+                  On mobile, open Arenswap inside your wallet browser or use MetaMask, Rainbow, Coinbase Wallet, or WalletConnect.
                 </p>
                 {!hasWalletConnectProjectId && (
                   <p className="max-w-sm rounded-xl border border-amber-500/20 bg-amber-500/[0.07] px-3 py-2 text-center text-xs leading-relaxed text-amber-300/80">
@@ -1198,7 +1203,7 @@ export default function CircleSwapBox() {
 
             {isConnected && chainId !== ARC_TESTNET_CHAIN_ID && (
               <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
-                <p className="mb-2 text-xs text-amber-400">Switch to Arc Testnet to continue.</p>
+                <p className="mb-2 text-xs text-amber-400">Please switch to Arc Testnet to continue.</p>
                 <button type="button" onClick={() => switchChain({ chainId: ARC_TESTNET_CHAIN_ID })} disabled={isSwitching} className="flex items-center gap-2 rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-50">
                   {isSwitching && <Spinner />}
                   Switch to Arc Testnet

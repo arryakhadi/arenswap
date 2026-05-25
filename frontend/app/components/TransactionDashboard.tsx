@@ -201,10 +201,10 @@ function UtilityCard({ title, children, right }: { title: string; children: Reac
 function WalletGate() {
   return (
     <div className="flex flex-col items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
-      <p className="text-sm text-white/50">Connect your wallet to continue</p>
-      <ConnectButton />
+      <p className="text-center text-sm text-white/55">Connect your wallet to start using Arenswap on Arc Testnet.</p>
+      <ConnectButton label="Connect Wallet" />
       <p className="max-w-sm text-center text-xs leading-relaxed text-white/32">
-        On mobile, use MetaMask, Rainbow, Coinbase Wallet, or WalletConnect. You can also open this site inside your wallet browser.
+        On mobile, open Arenswap inside your wallet browser or use MetaMask, Rainbow, Coinbase Wallet, or WalletConnect.
       </p>
       {!hasWalletConnectProjectId && (
         <p className="max-w-sm rounded-xl border border-amber-500/20 bg-amber-500/[0.07] px-3 py-2 text-center text-xs leading-relaxed text-amber-300/80">
@@ -219,7 +219,7 @@ function ChainGate() {
   const { switchChain, isPending } = useSwitchChain()
   return (
     <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
-      <p className="mb-2 text-xs text-amber-400">Switch to Arc Testnet to continue.</p>
+      <p className="mb-2 text-xs text-amber-400">Please switch to Arc Testnet to continue.</p>
       <button type="button" onClick={() => switchChain({ chainId: ARC_TESTNET_CHAIN_ID })} disabled={isPending} className="rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-300 hover:bg-amber-500/30 disabled:opacity-50">
         {isPending ? 'Switching...' : 'Switch to Arc Testnet'}
       </button>
@@ -562,6 +562,7 @@ function PortfolioMode({ setMode, setPresetToken }: { setMode: (mode: Mode) => v
   const { address, isConnected } = useAccount()
   const chainId = useChainId()
   const { balances, loading, refresh } = useTokenBalances()
+  const hasAnyBalance = SUPPORTED_TOKENS.some((token) => (balances[token] ?? BigInt(0)) > BigInt(0))
 
   return (
     <UtilityCard title="Portfolio">
@@ -575,6 +576,9 @@ function PortfolioMode({ setMode, setPresetToken }: { setMode: (mode: Mode) => v
             </div>
           </div>
           {loading && <p className="rounded-xl border border-blue-500/15 bg-blue-500/[0.06] px-4 py-3 text-xs text-blue-200/70">Checking Arc Testnet token balances...</p>}
+          {!loading && !hasAnyBalance && (
+            <p className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-xs text-white/40">No balances found. Claim testnet tokens to get started.</p>
+          )}
           {SUPPORTED_TOKENS.map((token) => (
             <div key={token} className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
               <div className="mb-3 flex items-center justify-between">
@@ -698,7 +702,7 @@ function ApprovalsMode() {
             )
           })}
           {hasLoadedAllowances && !hasActiveAllowance && !loading && (
-            <p className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-xs text-white/35">No active allowances found for the known Circle swap spender.</p>
+            <p className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-xs text-white/35">No active approvals found.</p>
           )}
           <PrimaryButton disabled={loading} onClick={refresh}>{loading ? 'Refreshing...' : 'Refresh allowances'}</PrimaryButton>
           {message && <p className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-xs text-white/45">{message}</p>}
@@ -727,10 +731,12 @@ function HistoryMode() {
         </div>
         {filtered.length === 0 ? (
           <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4 py-5">
-            <p className="text-sm font-semibold text-white/55">No transactions to show.</p>
+            <p className="text-sm font-semibold text-white/55">
+              {filter === 'all' ? 'No transactions yet.' : `No ${filter.replace('_', ' ')} transactions yet.`}
+            </p>
             <p className="mt-1 text-xs leading-relaxed text-white/35">
               {filter === 'all'
-                ? 'Completed swaps, sends, batch sends, and revokes will appear here after wallet confirmation and verification.'
+                ? 'Your swaps, sends, approvals, and batch transfers will appear here.'
                 : `No ${filter.replace('_', ' ')} records are stored locally yet.`}
             </p>
           </div>
